@@ -119,15 +119,9 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add AHU
   </button>
   <div style="flex:1"></div>
-  <button class="btn btn-ghost" onclick="exportCSV()">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>CSV
-  </button>
-  <button class="btn btn-amb" onclick="exportExcel()">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Excel
-  </button>
-  <button class="btn btn-grn" onclick="exportPDF()">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF
-  </button>
+  <button class="btn btn-ghost" onclick="exportCSV()">CSV</button>
+  <button class="btn btn-amb" onclick="exportExcel()">Excel</button>
+  <button class="btn btn-grn" onclick="exportPDF()">PDF</button>
 </div>
 
 <main id="main">
@@ -135,9 +129,7 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
     <div class="empty-icon">🌬️</div>
     <h2>No AHUs added yet</h2>
     <p>Click <strong>+ Add AHU</strong> to begin sizing an air handling unit. You can add multiple units and export all results.</p>
-    <button class="btn btn-pri" onclick="addAHU()">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add First AHU
-    </button>
+    <button class="btn btn-pri" onclick="addAHU()">Add First AHU</button>
   </div>
   <div id="ahu-list"></div>
 </main>
@@ -164,144 +156,208 @@ function defaultAHU(n){
   };
 }
 
-function addAHU(){
-  const ahu = defaultAHU(state.nextId++);
-  state.ahus.push(ahu);
-  render();
-}
-
-function removeAHU(id){
-  if(!confirm('Remove this AHU?')) return;
-  state.ahus = state.ahus.filter(a=>a.id!==id);
-  render();
-}
-
+function addAHU(){ state.ahus.push(defaultAHU(state.nextId++)); render(); }
+function removeAHU(id){ if(confirm('Remove this AHU?')){ state.ahus=state.ahus.filter(a=>a.id!==id); render(); } }
 function dupAHU(id){
-  const src = state.ahus.find(a=>a.id===id);
-  if(!src) return;
-  const copy = JSON.parse(JSON.stringify(src));
-  copy.id = Date.now();
-  copy.name = src.name+' (copy)';
-  state.ahus.splice(state.ahus.findIndex(a=>a.id===id)+1,0,copy);
-  render();
+  const src=state.ahus.find(a=>a.id===id); if(!src) return;
+  const copy=JSON.parse(JSON.stringify(src)); copy.id=Date.now(); copy.name=src.name+' (copy)';
+  state.ahus.splice(state.ahus.findIndex(a=>a.id===id)+1,0,copy); render();
 }
 
 function calc(a){
   const r={};
-  r.faceArea = (a.w/1000)*(a.h/1000);
-  r.airflowMs = r.faceArea * a.vel;
-  r.airflowMh = r.airflowMs * 3600;
-  r.airflowLs = r.airflowMs * 1000;
-  r.maxVel = a.coilType==='heating' ? 4.0 : 2.0;
-  r.velOk = a.vel <= r.maxVel;
+  r.faceArea=(a.w/1000)*(a.h/1000);
+  r.airflowMs=r.faceArea*a.vel; r.airflowMh=r.airflowMs*3600; r.airflowLs=r.airflowMs*1000;
+  r.maxVel=a.coilType==='heating'?4.0:2.0; r.velOk=a.vel<=r.maxVel;
 
-  const rectArea = (a.ductW/1000)*(a.ductH/1000);
-  const roundArea = Math.PI*Math.pow((a.ductDia/1000)/2,2);
-  r.ductArea = a.ductShape==='round' ? roundArea : rectArea;
-  r.ductVel = r.ductArea>0 ? (r.airflowMs/r.ductArea) : 0;
-  if(r.ductVel < 3){ r.ductBand='Low'; r.ductBandClass='cool'; r.ductGuide='Below typical CIBSE main duct range.'; }
-  else if(r.ductVel <= 6){ r.ductBand='Expected'; r.ductBandClass='big'; r.ductGuide='Within typical CIBSE main duct range (3–6 m/s).'; }
-  else if(r.ductVel <= 8){ r.ductBand='High'; r.ductBandClass='warn'; r.ductGuide='Above typical range; may increase noise/pressure drop.'; }
-  else { r.ductBand='Very high'; r.ductBandClass='hot'; r.ductGuide='Well above typical CIBSE main duct range.'; }
+  const rectArea=(a.ductW/1000)*(a.ductH/1000), roundArea=Math.PI*Math.pow((a.ductDia/1000)/2,2);
+  r.ductArea=a.ductShape==='round'?roundArea:rectArea; r.ductVel=r.ductArea>0?(r.airflowMs/r.ductArea):0;
+  if(r.ductVel<3){r.ductBand='Low';r.ductBandClass='cool';r.ductGuide='Below typical CIBSE main duct range.';}
+  else if(r.ductVel<=6){r.ductBand='Expected';r.ductBandClass='big';r.ductGuide='Within typical CIBSE main duct range (3–6 m/s).';}
+  else if(r.ductVel<=8){r.ductBand='High';r.ductBandClass='warn';r.ductGuide='Above typical range; may increase noise/pressure drop.';}
+  else {r.ductBand='Very high';r.ductBandClass='hot';r.ductGuide='Well above typical CIBSE main duct range.';}
 
   if(a.wetCoil){
-    const preset = PIPES.find(p=>p.l===a.pipe);
-    const id_mm = preset?.id ?? a.pipeCustom;
-    r.pipeDia = id_mm;
-    const D = id_mm/1000;
-    const f=0.02;
-    let rhoF=998, CpF=4.18;
-    if(a.fluid==='glycol30'){rhoF=1040;CpF=3.8;}
-    else if(a.fluid==='glycol50'){rhoF=1070;CpF=3.4;}
-    r.wVel = Math.sqrt((2*D*300)/(f*rhoF));
-    r.wArea = Math.PI*Math.pow(D/2,2);
-    r.wFlowMs = r.wVel*r.wArea;
-    r.wFlowLs = r.wFlowMs*1000;
-    r.wFlowLm = r.wFlowLs*60;
-    r.duty = r.wFlowMs*rhoF*CpF*Math.abs(a.dT);
-    const rhoA=1.2, CpA=1.005;
-    r.airDT = r.airflowMs>0 ? r.duty/(r.airflowMs*rhoA*CpA) : 0;
-    r.isHeat = a.coilType==='heating';
-    r.supplyTemp = a.coilType==='heating' ? (a.raTemp||21)+r.airDT : (a.raTemp||21)-r.airDT;
+    const preset=PIPES.find(p=>p.l===a.pipe), id_mm=preset?.id??a.pipeCustom, D=id_mm/1000, f=0.02;
+    let rhoF=998,CpF=4.18; if(a.fluid==='glycol30'){rhoF=1040;CpF=3.8;} else if(a.fluid==='glycol50'){rhoF=1070;CpF=3.4;}
+    r.pipeDia=id_mm; r.wVel=Math.sqrt((2*D*300)/(f*rhoF)); r.wArea=Math.PI*Math.pow(D/2,2);
+    r.wFlowMs=r.wVel*r.wArea; r.wFlowLs=r.wFlowMs*1000; r.wFlowLm=r.wFlowLs*60;
+    r.duty=r.wFlowMs*rhoF*CpF*Math.abs(a.dT); const rhoA=1.2,CpA=1.005;
+    r.airDT=r.airflowMs>0?r.duty/(r.airflowMs*rhoA*CpA):0; r.isHeat=a.coilType==='heating';
+    r.supplyTemp=a.coilType==='heating'?(a.raTemp||21)+r.airDT:(a.raTemp||21)-r.airDT;
   }
 
   if(a.fa){
-    const rhoA=1.2, CpA=1.005;
-    r.faArea = (a.faW/1000)*(a.faH/1000);
-    r.faFlowFace = r.faArea*a.faVel;
-    r.faFlowFaceMh = r.faFlowFace*3600;
-    r.faPctOfAHU = r.airflowMs>0 ? (r.faFlowFace/r.airflowMs)*100 : 0;
-    r.faFlowPct = r.airflowMs*(a.faPercent/100);
-    r.faFlowPctMh = r.faFlowPct*3600;
-
-    const dT = a.raTemp - a.oaTemp;
-    r.oaDeltaT = dT;
-    r.faHeat = dT>0;
-    r.faLoadFace = r.faFlowFace*rhoA*CpA*Math.abs(dT);
-    r.faLoadPct  = r.faFlowPct *rhoA*CpA*Math.abs(dT);
-    r.mixedTemp = (a.faPercent/100)*a.oaTemp + (1-a.faPercent/100)*a.raTemp;
+    const rhoA=1.2,CpA=1.005; r.faArea=(a.faW/1000)*(a.faH/1000);
+    r.faFlowFace=r.faArea*a.faVel; r.faFlowFaceMh=r.faFlowFace*3600; r.faPctOfAHU=r.airflowMs>0?(r.faFlowFace/r.airflowMs)*100:0;
+    r.faFlowPct=r.airflowMs*(a.faPercent/100); r.faFlowPctMh=r.faFlowPct*3600;
+    const dT=a.raTemp-a.oaTemp; r.oaDeltaT=dT; r.faHeat=dT>0;
+    r.faLoadFace=r.faFlowFace*rhoA*CpA*Math.abs(dT); r.faLoadPct=r.faFlowPct*rhoA*CpA*Math.abs(dT);
+    r.mixedTemp=(a.faPercent/100)*a.oaTemp + (1-a.faPercent/100)*a.raTemp;
   }
-
   return r;
 }
 
 function render(){
-  document.getElementById('empty-state').style.display = state.ahus.length?'none':'block';
-  const list = document.getElementById('ahu-list');
-  list.innerHTML = state.ahus.map((a,i)=>renderAHU(a,i)).join('');
+  document.getElementById('empty-state').style.display=state.ahus.length?'none':'block';
+  document.getElementById('ahu-list').innerHTML=state.ahus.map((a,i)=>renderAHU(a,i)).join('');
 }
 
-// Keeping template concise for this paste version:
 function renderAHU(a,i){
-  const r = calc(a);
-  const isH = a.coilType==='heating';
-  const velMax = isH ? 4.0 : 2.0;
-  return `
-  <div class="ahu-card" id="ahu-${a.id}">
+  const r=calc(a), isH=a.coilType==='heating';
+  const pipeOpts=PIPES.map(p=>`<option value="${p.l}" ${a.pipe===p.l?'selected':''}>${p.l}</option>`).join('');
+  const fluidOpts=[{v:'water',l:'Water'},{v:'glycol30',l:'Glycol 30%'},{v:'glycol50',l:'Glycol 50%'}]
+    .map(f=>`<option value="${f.v}" ${a.fluid===f.v?'selected':''}>${f.l}</option>`).join('');
+  const velMax=isH?4.0:2.0;
+
+  return `<div class="ahu-card">
     <div class="ahu-head">
       <div class="ahu-num">${i+1}</div>
-      <input class="ahu-name" value="${a.name}" placeholder="AHU Name"
-        oninput="upd(${a.id},'name',this.value,false)" onchange="upd(${a.id},'name',this.value)">
-      <input class="ahu-loc" value="${a.loc}" placeholder="Location / Zone"
-        oninput="upd(${a.id},'loc',this.value,false)" onchange="upd(${a.id},'loc',this.value)">
+      <input class="ahu-name" value="${a.name}" oninput="upd(${a.id},'name',this.value,false)" onchange="upd(${a.id},'name',this.value)">
+      <input class="ahu-loc" value="${a.loc}" placeholder="Location / Zone" oninput="upd(${a.id},'loc',this.value,false)" onchange="upd(${a.id},'loc',this.value)">
       <div class="ahu-actions">
         <button class="btn btn-ghost btn-sm" onclick="dupAHU(${a.id})">Duplicate</button>
         <button class="btn btn-danger btn-sm" onclick="removeAHU(${a.id})">Remove</button>
       </div>
     </div>
     <div class="ahu-body">
-      <div class="fr"><div class="fl">Width (mm)</div>
-        <div class="fi"><input type="number" value="${a.w}" oninput="upd(${a.id},'w',+this.value,false)" onchange="upd(${a.id},'w',+this.value)"></div>
-      </div>
-      <div class="fr"><div class="fl">Height (mm)</div>
-        <div class="fi"><input type="number" value="${a.h}" oninput="upd(${a.id},'h',+this.value,false)" onchange="upd(${a.id},'h',+this.value)"></div>
-      </div>
-      <div class="fr"><div class="fl">Main Internal AHU Velocity</div>
-        <div class="fi">
-          <div class="sld">
-            <input type="range" min="0.5" max="${velMax}" step="0.1" value="${a.vel}"
-              oninput="upd(${a.id},'vel',+this.value,false);this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s'"
-              onchange="upd(${a.id},'vel',+this.value)">
-            <span class="sval">${a.vel.toFixed(1)} m/s</span>
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">📐 AHU External Dimensions & Airflow</span><span class="tag ${isH?'tag-h':'tag-c'}">${isH?'🔥 Heating':'❄️ Cooling'}</span></div>
+          <div class="panel-body">
+            <div class="fr"><div class="fl">Coil Type</div><div class="fi">
+              <div class="coil-sel">
+                <div class="coil-btn ${isH?'h-on':''}" onclick="setCoil(${a.id},'heating')">🔥 Heating<br><small>max 4.0 m/s</small></div>
+                <div class="coil-btn ${!isH?'c-on':''}" onclick="setCoil(${a.id},'cooling')">❄️ Cooling<br><small>max 2.0 m/s</small></div>
+              </div></div></div>
+            <div class="two">
+              <div class="fr" style="margin:0"><div class="fl" style="width:90px">Width (mm)</div><div class="fi"><input type="number" value="${a.w}" oninput="upd(${a.id},'w',+this.value,false)" onchange="upd(${a.id},'w',+this.value)"></div></div>
+              <div class="fr" style="margin:0"><div class="fl" style="width:90px">Height (mm)</div><div class="fi"><input type="number" value="${a.h}" oninput="upd(${a.id},'h',+this.value,false)" onchange="upd(${a.id},'h',+this.value)"></div></div>
+            </div>
+            <hr>
+            <div class="fr"><div class="fl">Main Internal AHU Velocity</div><div class="fi"><div class="sld">
+              <input type="range" min="0.5" max="${velMax}" step="0.1" value="${Math.min(a.vel,velMax)}" oninput="upd(${a.id},'vel',+this.value,false);this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s'" onchange="upd(${a.id},'vel',+this.value)">
+              <span class="sval">${a.vel.toFixed(1)} m/s</span></div>
+              <div class="note">Recommended max: ${velMax.toFixed(1)} m/s for ${isH?'heating':'cooling'}</div>
+            </div></div>
+            <div class="res">
+              <h4>Airflow Results</h4>
+              <div class="rr"><span class="rl">Face Area</span><span class="rv">${r.faceArea.toFixed(2)} m²</span></div>
+              <div class="rr"><span class="rl">Max Airflow</span><span class="rv big">${Math.round(r.airflowMh).toLocaleString()} m³/h</span></div>
+              <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${r.airflowMs.toFixed(3)} m³/s</span></div>
+              <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${Math.round(r.airflowLs).toLocaleString()} l/s</span></div>
+              <div class="rr"><span class="rl">Velocity Status</span><span class="rv"><span class="tag ${r.velOk?'tag-ok':'tag-warn'}">${r.velOk?'✓ Within limit':'⚠ Exceeds limit'}</span></span></div>
+            </div>
+            <hr>
+            <div class="fr"><div class="fl">Main Duct Type</div><div class="fi">
+              <select onchange="upd(${a.id},'ductShape',this.value)">
+                <option value="rect" ${a.ductShape==='rect'?'selected':''}>Rectangular</option>
+                <option value="round" ${a.ductShape==='round'?'selected':''}>Spiral Round</option>
+              </select>
+            </div></div>
+            ${a.ductShape==='round'
+              ? `<div class="fr"><div class="fl">Duct Ø (mm)</div><div class="fi"><input type="number" value="${a.ductDia}" oninput="upd(${a.id},'ductDia',+this.value,false)" onchange="upd(${a.id},'ductDia',+this.value)"></div></div>`
+              : `<div class="two">
+                  <div class="fr" style="margin:0"><div class="fl" style="width:90px">Duct W (mm)</div><div class="fi"><input type="number" value="${a.ductW}" oninput="upd(${a.id},'ductW',+this.value,false)" onchange="upd(${a.id},'ductW',+this.value)"></div></div>
+                  <div class="fr" style="margin:0"><div class="fl" style="width:90px">Duct H (mm)</div><div class="fi"><input type="number" value="${a.ductH}" oninput="upd(${a.id},'ductH',+this.value,false)" onchange="upd(${a.id},'ductH',+this.value)"></div></div>
+                </div>`}
+            <div class="res" style="margin-top:10px">
+              <h4>Main Duct Cross-check</h4>
+              <div class="rr"><span class="rl">Duct Area</span><span class="rv">${r.ductArea.toFixed(3)} m²</span></div>
+              <div class="rr"><span class="rl">Velocity @ AHU Flow</span><span class="rv ${r.ductBandClass}">${r.ductVel.toFixed(2)} m/s</span></div>
+              <div class="rr"><span class="rl">Expected Flow Band</span><span class="rv">${r.ductBand}</span></div>
+              <div class="note">${r.ductGuide}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">💧 Wet Coil Analysis</span>
+            <label class="toggler" onclick="toggle(${a.id},'wetCoil')"><div class="sw ${a.wetCoil?'on':''}"></div><span>${a.wetCoil?'Enabled':'Disabled'}</span></label>
+          </div>
+          <div class="panel-body ${a.wetCoil?'':'disabled'}">
+            <div class="fr"><div class="fl">Pipe Size (OD)</div><div class="fi"><select onchange="upd(${a.id},'pipe',this.value)">${pipeOpts}</select></div></div>
+            ${a.pipe==='Custom'?`<div class="fr"><div class="fl">Custom Int. Dia (mm)</div><div class="fi"><input type="number" value="${a.pipeCustom}" oninput="upd(${a.id},'pipeCustom',+this.value,false)" onchange="upd(${a.id},'pipeCustom',+this.value)"></div></div>`:''}
+            <div class="fr"><div class="fl">Fluid Type</div><div class="fi"><select onchange="upd(${a.id},'fluid',this.value)">${fluidOpts}</select></div></div>
+            <div class="fr"><div class="fl">Water ΔT (°C)</div><div class="fi"><div class="sld">
+              <input type="range" min="2" max="30" step="1" value="${a.dT}" oninput="upd(${a.id},'dT',+this.value,false);this.nextElementSibling.textContent=this.value+'°C'" onchange="upd(${a.id},'dT',+this.value)">
+              <span class="sval">${a.dT}°C</span></div></div></div>
+            ${a.wetCoil?`<div class="res">
+              <h4>Wet Coil Results</h4>
+              <div class="rr"><span class="rl">Int. Diameter Used</span><span class="rv">${r.pipeDia} mm</span></div>
+              <div class="rr"><span class="rl">Water Velocity</span><span class="rv">${r.wVel.toFixed(2)} m/s</span></div>
+              <div class="rr"><span class="rl">Water Flow Rate</span><span class="rv">${r.wFlowLs.toFixed(2)} l/s (${r.wFlowLm.toFixed(1)} l/min)</span></div>
+              <div class="rr"><span class="rl">Coil Duty</span><span class="rv big">${r.duty.toFixed(1)} kW</span></div>
+              <div class="rr"><span class="rl">Air Temp ${r.isHeat?'Rise':'Drop'}</span><span class="rv ${r.isHeat?'hot':'cool'}">${r.isHeat?'+':'−'}${r.airDT.toFixed(1)}°C</span></div>
+            </div>`:''}
+          </div>
+        </div>
+
+        <div class="panel full">
+          <div class="panel-head"><span class="panel-title">🌿 Fresh Air / Outside Air Analysis</span>
+            <label class="toggler" onclick="toggle(${a.id},'fa')"><div class="sw ${a.fa?'on':''}"></div><span>${a.fa?'Enabled':'Disabled'}</span></label>
+          </div>
+          <div class="panel-body ${a.fa?'':'disabled'}">
+            ${a.fa?renderFA(a,r):'<div class="note">Enable fresh air analysis to calculate OA heat loads and mixed air conditions.</div>'}
           </div>
         </div>
       </div>
+    </div>
+  </div>`;
+}
+
+function renderFA(a,r){
+  const dT=a.raTemp-a.oaTemp, heatCool=dT>0?'🔥 Heating load':'❄️ Cooling load';
+  return `<div class="grid2" style="gap:16px">
+    <div>
+      <strong style="font-size:13px;color:var(--pri)">Method A — OA Inlet Face</strong>
+      <div class="two">
+        <div class="fr" style="margin:0"><div class="fl" style="width:80px">Width (mm)</div><div class="fi"><input type="number" value="${a.faW}" oninput="upd(${a.id},'faW',+this.value,false)" onchange="upd(${a.id},'faW',+this.value)"></div></div>
+        <div class="fr" style="margin:0"><div class="fl" style="width:80px">Height (mm)</div><div class="fi"><input type="number" value="${a.faH}" oninput="upd(${a.id},'faH',+this.value,false)" onchange="upd(${a.id},'faH',+this.value)"></div></div>
+      </div>
+      <div class="fr"><div class="fl">Face Velocity</div><div class="fi"><div class="sld">
+        <input type="range" min="0.5" max="3.0" step="0.1" value="${a.faVel}" oninput="upd(${a.id},'faVel',+this.value,false);this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s'" onchange="upd(${a.id},'faVel',+this.value)">
+        <span class="sval">${a.faVel.toFixed(1)} m/s</span>
+      </div></div></div>
       <div class="res">
-        <div class="rr"><span class="rl">Face Area</span><span class="rv">${r.faceArea.toFixed(2)} m²</span></div>
-        <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${Math.round(r.airflowMh)} m³/h</span></div>
+        <h4>From Inlet Face</h4>
+        <div class="rr"><span class="rl">OA Inlet Area</span><span class="rv">${r.faArea.toFixed(2)} m²</span></div>
+        <div class="rr"><span class="rl">Max Fresh Air Volume</span><span class="rv big">${Math.round(r.faFlowFaceMh).toLocaleString()} m³/h</span></div>
+      </div>
+    </div>
+    <div>
+      <strong style="font-size:13px;color:var(--pri)">Method B — Fresh Air Percentage</strong>
+      <div class="fr"><div class="fl">Supply Air Temp</div><div class="fi"><input type="number" value="${a.raTemp}" oninput="upd(${a.id},'raTemp',+this.value,false)" onchange="upd(${a.id},'raTemp',+this.value)"></div></div>
+      <div class="fr"><div class="fl">Outside Air Temp</div><div class="fi"><div class="sld">
+        <input type="range" min="-10" max="40" step="1" value="${a.oaTemp}" oninput="upd(${a.id},'oaTemp',+this.value,false);this.nextElementSibling.textContent=((+this.value)>0?'+':'')+this.value+'°C'" onchange="upd(${a.id},'oaTemp',+this.value)">
+        <span class="sval">${a.oaTemp>0?'+':''}${a.oaTemp}°C</span></div></div></div>
+      <div class="fr"><div class="fl">Fresh Air %</div><div class="fi"><div class="sld">
+        <input type="range" min="5" max="100" step="5" value="${a.faPercent}" oninput="upd(${a.id},'faPercent',+this.value,false);this.nextElementSibling.textContent=this.value+'%'" onchange="upd(${a.id},'faPercent',+this.value)">
+        <span class="sval">${a.faPercent}%</span></div></div></div>
+      <div class="res">
+        <h4>From FA %</h4>
+        <div class="rr"><span class="rl">Fresh Air Volume</span><span class="rv big">${Math.round(r.faFlowPctMh).toLocaleString()} m³/h</span></div>
+        <div class="rr"><span class="rl">${heatCool}</span><span class="rv ${dT>0?'hot':'cool'}">${r.faLoadPct.toFixed(1)} kW</span></div>
+        <div class="rr"><span class="rl">Mixed Air Temp</span><span class="rv">${r.mixedTemp.toFixed(1)}°C</span></div>
       </div>
     </div>
   </div>`;
 }
 
 function upd(id,key,val,rerender=true){
-  const a = state.ahus.find(x=>x.id===id);
-  if(!a) return;
-  a[key] = val;
+  const a=state.ahus.find(x=>x.id===id); if(!a) return;
+  a[key]=val;
+  if(key==='coilType'){ const mx=val==='heating'?4.0:2.0; if(a.vel>mx)a.vel=mx; }
   if(rerender) render();
 }
+function toggle(id,key){ const a=state.ahus.find(x=>x.id===id); if(!a) return; a[key]=!a[key]; render(); }
+function setCoil(id,type){ const a=state.ahus.find(x=>x.id===id); if(!a) return; a.coilType=type; const mx=type==='heating'?4.0:2.0; if(a.vel>mx)a.vel=mx; render(); }
 
-document.getElementById('projDate').value = state.date;
+function exportCSV(){ alert('CSV export is included in your original full version.'); }
+function exportExcel(){ alert('Excel export is included in your original full version.'); }
+function exportPDF(){ alert('PDF export is included in your original full version.'); }
+
+document.getElementById('projDate').value=state.date;
 render();
 </script>
 </body>
