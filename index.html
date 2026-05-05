@@ -205,7 +205,7 @@ function calc(a){
   r.airflowMs = r.faceArea * a.vel;
   r.airflowMh = r.airflowMs * 3600;
   r.airflowLs = r.airflowMs * 1000;
-  r.maxVel = a.coilType==='heating' ? 4.0 : 2.5;
+  r.maxVel = a.coilType==='heating' ? 4.0 : 2.0;
   r.velOk = a.vel <= r.maxVel;
   // Main duct sizing check (CIBSE indicative main supply range)
   const rectArea = (a.ductW/1000)*(a.ductH/1000);
@@ -348,7 +348,7 @@ function renderAHU(a,i){
           </div>
           <hr>
           <div class="fr">
-            <div class="fl">Face Velocity</div>
+            <div class="fl">Main Internal AHU Velocity</div>
             <div class="fi">
               <div class="sld">
                 <input type="range" min="0.5" max="${velMax}" step="${velStep}" value="${Math.min(a.vel,velMax)}"
@@ -727,7 +727,7 @@ function exportExcel(){
   const info=[['AHU Sizing Calculator'],['Project',state.projectName],['Reference',state.projectRef],
     ['Engineer',state.engineer],['Date',state.date],['Notes',state.notes],[],
     ['Assumptions'],
-    ['Face velocity limits','Heating ≤ 4.0 m/s, Cooling ≤ 2.5 m/s'],
+    ['Face velocity limits','Heating ≤ 4.0 m/s, Cooling ≤ 2.0 m/s'],
     ['Wet coil pipe flow','Darcy-Weisbach, f=0.02, max 300 Pa/m pressure drop'],
     ['Air properties','ρ=1.2 kg/m³, Cp=1.005 kJ/(kg·K)'],
     ['Water properties','ρ=998 kg/m³, Cp=4.18 kJ/(kg·K)'],
