@@ -58,8 +58,8 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
 .fr{display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .fl{width:155px;flex-shrink:0;font-size:12px;color:var(--muted);font-weight:500}
 .fi{flex:1}
-.fi input[type=number],.fi select{width:100%;padding:5px 9px;border:1px solid var(--bdr);border-radius:6px;font-size:13px;outline:none;background:#fff;color:var(--txt)}
-.fi input[type=number]:focus,.fi select:focus{border-color:var(--sec);box-shadow:0 0 0 2px rgba(14,165,233,.15)}
+.fi input[type=text],.fi input[type=number],.fi select{width:100%;padding:5px 9px;border:1px solid var(--bdr);border-radius:6px;font-size:13px;outline:none;background:#fff;color:var(--txt)}
+.fi input[type=text]:focus,.fi input[type=number]:focus,.fi select:focus{border-color:var(--sec);box-shadow:0 0 0 2px rgba(14,165,233,.15)}
 .sld{display:flex;align-items:center;gap:8px}
 .sld input[type=range]{flex:1;accent-color:var(--pri2);cursor:pointer;height:6px}
 .sval{min-width:58px;text-align:right;font-weight:700;color:var(--pri2);font-size:13px}
@@ -91,11 +91,17 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
 .tag-c{background:#dbeafe;color:#1e40af}
 .tag-ok{background:#d1fae5;color:#065f46}
 .tag-warn{background:#fef3c7;color:#92400e}
+.tag-info{background:#e0f2fe;color:#0369a1}
+.tag-err{background:#fee2e2;color:#991b1b}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fa-tabs{display:flex;gap:0;margin-bottom:12px;border:1px solid var(--bdr);border-radius:6px;overflow:hidden}
-.fa-tab{flex:1;padding:6px 10px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;background:#f8fafc;color:var(--muted);border:none;transition:all .15s}
-.fa-tab.active{background:var(--pri2);color:#fff}
 .full{grid-column:1/-1}
+.shape-sel{display:flex;gap:8px;margin-bottom:12px}
+.shape-btn{flex:1;padding:9px 10px;border:2px solid var(--bdr);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-weight:700;text-align:center;transition:all .15s}
+.shape-btn.on{border-color:var(--pri2);background:#dbeafe;color:#1e40af}
+.ashrae-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.ashrae-tbl td{padding:4px 7px;border-bottom:1px solid rgba(191,219,254,.4)}
+.ashrae-tbl tr:last-child td{border:none}
+.ashrae-tbl .cur{background:rgba(14,165,233,.15);font-weight:700}
 @media(max-width:600px){main{padding:10px 12px}.fl{width:110px}.toolbar{padding:10px 12px}}
 @media print{.toolbar,.ahu-actions,.btn{display:none!important}.ahu-card{break-inside:avoid;box-shadow:none;border:1px solid #ccc}.summary-bar{background:#1a3a5c!important;-webkit-print-color-adjust:exact}}
 </style>
@@ -119,9 +125,15 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add AHU
   </button>
   <div style="flex:1"></div>
-  <button class="btn btn-ghost" onclick="exportCSV()">CSV</button>
-  <button class="btn btn-amb" onclick="exportExcel()">Excel</button>
-  <button class="btn btn-grn" onclick="exportPDF()">PDF</button>
+  <button class="btn btn-ghost" onclick="exportCSV()">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>CSV
+  </button>
+  <button class="btn btn-amb" onclick="exportExcel()">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Excel
+  </button>
+  <button class="btn btn-grn" onclick="exportPDF()">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF
+  </button>
 </div>
 
 <main id="main">
@@ -129,235 +141,794 @@ main{max-width:1280px;margin:0 auto;padding:20px 24px}
     <div class="empty-icon">🌬️</div>
     <h2>No AHUs added yet</h2>
     <p>Click <strong>+ Add AHU</strong> to begin sizing an air handling unit. You can add multiple units and export all results.</p>
-    <button class="btn btn-pri" onclick="addAHU()">Add First AHU</button>
+    <button class="btn btn-pri" onclick="addAHU()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add First AHU
+    </button>
   </div>
   <div id="ahu-list"></div>
 </main>
 
 <script>
+// ── State ─────────────────────────────────────────────────────────────────────
 const state = {
   projectName:'', projectRef:'', engineer:'', date: new Date().toISOString().split('T')[0],
   notes:'', ahus:[], nextId:1
 };
 
+// ── Pipe presets (nominal OD → internal diameter mm) ─────────────────────────
 const PIPES = [
   {l:'15 mm',id:13},{l:'22 mm',id:20},{l:'28 mm',id:26},{l:'35 mm',id:32},
   {l:'42 mm',id:39},{l:'54 mm',id:51},{l:'76 mm',id:72},{l:'108 mm',id:102},
   {l:'Custom',id:null}
 ];
 
+// ── ASHRAE duct velocity bands ────────────────────────────────────────────────
+const DUCT_GRADES = {
+  vslow: {cls:'tag-info', txt:'Below recommended — duct may be oversized'},
+  low:   {cls:'tag-ok',   txt:'✓ Low velocity — residential / quiet areas'},
+  ok:    {cls:'tag-ok',   txt:'✓ Recommended — ASHRAE commercial main supply (5–8 m/s)'},
+  hi:    {cls:'tag-warn', txt:'⚠ High velocity — within ASHRAE high-pressure limit (≤ 12.5 m/s)'},
+  exceed:{cls:'tag-err',  txt:'✗ Exceeds ASHRAE 12.5 m/s maximum — noise & pressure risk'}
+};
+
+// ── Default AHU ───────────────────────────────────────────────────────────────
 function defaultAHU(n){
   return {
     id: Date.now()+n, name:`AHU-${String(state.nextId).padStart(2,'0')}`, loc:'',
     w:1000, h:600, coilType:'cooling', vel:2.0,
     wetCoil:false, pipe:'28 mm', pipeCustom:26, dT:10, fluid:'water',
-    ductShape:'rect', ductW:800, ductH:500, ductDia:900,
-    fa:false, faW:500, faH:400, faVel:1.5, oaTemp:10, raTemp:21, faPercent:20, faTab:'face'
+    fa:false, faW:500, faH:400, faVel:1.5, oaTemp:10, raTemp:21, faPercent:20,
+    duct:false, ductShape:'rect', ductW:400, ductH:300, ductD:400
   };
 }
 
-function addAHU(){ state.ahus.push(defaultAHU(state.nextId++)); render(); }
-function removeAHU(id){ if(confirm('Remove this AHU?')){ state.ahus=state.ahus.filter(a=>a.id!==id); render(); } }
-function dupAHU(id){
-  const src=state.ahus.find(a=>a.id===id); if(!src) return;
-  const copy=JSON.parse(JSON.stringify(src)); copy.id=Date.now(); copy.name=src.name+' (copy)';
-  state.ahus.splice(state.ahus.findIndex(a=>a.id===id)+1,0,copy); render();
+function addAHU(){
+  const ahu = defaultAHU(state.nextId++);
+  state.ahus.push(ahu);
+  render();
+  setTimeout(()=>{
+    const el = document.getElementById('ahu-'+ahu.id);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
 }
 
+function removeAHU(id){
+  if(!confirm('Remove this AHU?')) return;
+  state.ahus = state.ahus.filter(a=>a.id!==id);
+  render();
+}
+
+function dupAHU(id){
+  const src = state.ahus.find(a=>a.id===id);
+  if(!src) return;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = Date.now();
+  copy.name = src.name+' (copy)';
+  state.ahus.splice(state.ahus.findIndex(a=>a.id===id)+1,0,copy);
+  render();
+}
+
+// ── Calculations ──────────────────────────────────────────────────────────────
 function calc(a){
   const r={};
-  r.faceArea=(a.w/1000)*(a.h/1000);
-  r.airflowMs=r.faceArea*a.vel; r.airflowMh=r.airflowMs*3600; r.airflowLs=r.airflowMs*1000;
-  r.maxVel=a.coilType==='heating'?4.0:2.0; r.velOk=a.vel<=r.maxVel;
-
-  const rectArea=(a.ductW/1000)*(a.ductH/1000), roundArea=Math.PI*Math.pow((a.ductDia/1000)/2,2);
-  r.ductArea=a.ductShape==='round'?roundArea:rectArea; r.ductVel=r.ductArea>0?(r.airflowMs/r.ductArea):0;
-  if(r.ductVel<3){r.ductBand='Low';r.ductBandClass='cool';r.ductGuide='Below typical CIBSE main duct range.';}
-  else if(r.ductVel<=6){r.ductBand='Expected';r.ductBandClass='big';r.ductGuide='Within typical CIBSE main duct range (3–6 m/s).';}
-  else if(r.ductVel<=8){r.ductBand='High';r.ductBandClass='warn';r.ductGuide='Above typical range; may increase noise/pressure drop.';}
-  else {r.ductBand='Very high';r.ductBandClass='hot';r.ductGuide='Well above typical CIBSE main duct range.';}
+  r.faceArea = (a.w/1000)*(a.h/1000);
+  r.airflowMs = r.faceArea * a.vel;
+  r.airflowMh = r.airflowMs * 3600;
+  r.airflowLs = r.airflowMs * 1000;
+  r.maxVel = a.coilType==='heating' ? 4.0 : 2.5;
+  r.velOk = a.vel <= r.maxVel;
 
   if(a.wetCoil){
-    const preset=PIPES.find(p=>p.l===a.pipe), id_mm=preset?.id??a.pipeCustom, D=id_mm/1000, f=0.02;
-    let rhoF=998,CpF=4.18; if(a.fluid==='glycol30'){rhoF=1040;CpF=3.8;} else if(a.fluid==='glycol50'){rhoF=1070;CpF=3.4;}
-    r.pipeDia=id_mm; r.wVel=Math.sqrt((2*D*300)/(f*rhoF)); r.wArea=Math.PI*Math.pow(D/2,2);
-    r.wFlowMs=r.wVel*r.wArea; r.wFlowLs=r.wFlowMs*1000; r.wFlowLm=r.wFlowLs*60;
-    r.duty=r.wFlowMs*rhoF*CpF*Math.abs(a.dT); const rhoA=1.2,CpA=1.005;
-    r.airDT=r.airflowMs>0?r.duty/(r.airflowMs*rhoA*CpA):0; r.isHeat=a.coilType==='heating';
-    r.supplyTemp=a.coilType==='heating'?(a.raTemp||21)+r.airDT:(a.raTemp||21)-r.airDT;
+    const preset = PIPES.find(p=>p.l===a.pipe);
+    const id_mm = preset?.id ?? a.pipeCustom;
+    r.pipeDia = id_mm;
+    const D = id_mm/1000;
+    const f=0.02;
+    let rhoF=998, CpF=4.18;
+    if(a.fluid==='glycol30'){rhoF=1040;CpF=3.8;}
+    else if(a.fluid==='glycol50'){rhoF=1070;CpF=3.4;}
+    r.wVel = Math.sqrt((2*D*300)/(f*rhoF));
+    r.wArea = Math.PI*Math.pow(D/2,2);
+    r.wFlowMs = r.wVel*r.wArea;
+    r.wFlowLs = r.wFlowMs*1000;
+    r.wFlowLm = r.wFlowLs*60;
+    r.duty = r.wFlowMs*rhoF*CpF*Math.abs(a.dT);
+    const rhoA=1.2, CpA=1.005;
+    r.airDT = r.airflowMs>0 ? r.duty/(r.airflowMs*rhoA*CpA) : 0;
+    r.isHeat = a.coilType==='heating';
+    r.supplyTemp = a.coilType==='heating' ? (a.raTemp||21)+r.airDT : (a.raTemp||21)-r.airDT;
   }
 
   if(a.fa){
-    const rhoA=1.2,CpA=1.005; r.faArea=(a.faW/1000)*(a.faH/1000);
-    r.faFlowFace=r.faArea*a.faVel; r.faFlowFaceMh=r.faFlowFace*3600; r.faPctOfAHU=r.airflowMs>0?(r.faFlowFace/r.airflowMs)*100:0;
-    r.faFlowPct=r.airflowMs*(a.faPercent/100); r.faFlowPctMh=r.faFlowPct*3600;
-    const dT=a.raTemp-a.oaTemp; r.oaDeltaT=dT; r.faHeat=dT>0;
-    r.faLoadFace=r.faFlowFace*rhoA*CpA*Math.abs(dT); r.faLoadPct=r.faFlowPct*rhoA*CpA*Math.abs(dT);
-    r.mixedTemp=(a.faPercent/100)*a.oaTemp + (1-a.faPercent/100)*a.raTemp;
+    const rhoA=1.2, CpA=1.005;
+    r.faArea = (a.faW/1000)*(a.faH/1000);
+    r.faFlowFace = r.faArea*a.faVel;
+    r.faFlowFaceMh = r.faFlowFace*3600;
+    r.faPctOfAHU = r.airflowMs>0 ? (r.faFlowFace/r.airflowMs)*100 : 0;
+    r.faFlowPct = r.airflowMs*(a.faPercent/100);
+    r.faFlowPctMh = r.faFlowPct*3600;
+    const dT = a.raTemp - a.oaTemp;
+    r.oaDeltaT = dT;
+    r.faHeat = dT>0;
+    r.faLoadFace = r.faFlowFace*rhoA*CpA*Math.abs(dT);
+    r.faLoadPct  = r.faFlowPct *rhoA*CpA*Math.abs(dT);
+    r.mixedTemp = (a.faPercent/100)*a.oaTemp + (1-a.faPercent/100)*a.raTemp;
+    if(a.wetCoil){
+      const sign = a.coilType==='heating' ? 1 : -1;
+      r.faPenalty = r.faFlowPct * rhoA * CpA * sign * (a.raTemp - a.oaTemp);
+      r.netDuty = r.duty - r.faPenalty;
+      r.canHandle = r.netDuty > 0;
+    }
   }
+
+  if(a.duct){
+    let dA;
+    if(a.ductShape==='rect'){
+      dA = (a.ductW/1000)*(a.ductH/1000);
+      // Huebscher equivalent diameter formula
+      r.ductEqDia = Math.round(1.30*Math.pow(a.ductW*a.ductH,0.625)/Math.pow(a.ductW+a.ductH,0.25));
+    } else {
+      dA = Math.PI*Math.pow(a.ductD/2000,2);
+      r.ductEqDia = a.ductD;
+    }
+    r.ductArea = dA;
+    r.ductVel  = dA>0 ? r.airflowMs/dA : 0;
+    if(r.ductVel<3)        r.ductGrade='vslow';
+    else if(r.ductVel<=5)  r.ductGrade='low';
+    else if(r.ductVel<=8)  r.ductGrade='ok';
+    else if(r.ductVel<=12.5) r.ductGrade='hi';
+    else                   r.ductGrade='exceed';
+  }
+
   return r;
 }
 
+// ── Render ────────────────────────────────────────────────────────────────────
 function render(){
-  document.getElementById('empty-state').style.display=state.ahus.length?'none':'block';
-  document.getElementById('ahu-list').innerHTML=state.ahus.map((a,i)=>renderAHU(a,i)).join('');
+  const ae = document.activeElement;
+  const fid = ae && ae.dataset ? ae.dataset.fid : null;
+  const ss = ae ? ae.selectionStart : null;
+  const se = ae ? ae.selectionEnd : null;
+
+  document.getElementById('empty-state').style.display = state.ahus.length?'none':'block';
+  const list = document.getElementById('ahu-list');
+  list.innerHTML = state.ahus.map((a,i)=>renderAHU(a,i)).join('');
+
+  if(fid){
+    const el = document.querySelector(`[data-fid="${fid}"]`);
+    if(el){
+      el.focus();
+      if(ss!=null && typeof el.setSelectionRange==='function'){
+        try{ el.setSelectionRange(ss,se); }catch(e){}
+      }
+    }
+  }
 }
 
+// ── AHU card ──────────────────────────────────────────────────────────────────
 function renderAHU(a,i){
-  const r=calc(a), isH=a.coilType==='heating';
-  const pipeOpts=PIPES.map(p=>`<option value="${p.l}" ${a.pipe===p.l?'selected':''}>${p.l}</option>`).join('');
-  const fluidOpts=[{v:'water',l:'Water'},{v:'glycol30',l:'Glycol 30%'},{v:'glycol50',l:'Glycol 50%'}]
-    .map(f=>`<option value="${f.v}" ${a.fluid===f.v?'selected':''}>${f.l}</option>`).join('');
-  const velMax=isH?4.0:2.0;
+  const r = calc(a);
+  const isH = a.coilType==='heating';
+  const pipeOpts = PIPES.map(p=>`<option value="${p.l}" ${a.pipe===p.l?'selected':''}>${p.l}</option>`).join('');
+  const fluidOpts = [
+    {v:'water',l:'Water'},{v:'glycol30',l:'Glycol 30%'},{v:'glycol50',l:'Glycol 50%'}
+  ].map(f=>`<option value="${f.v}" ${a.fluid===f.v?'selected':''}>${f.l}</option>`).join('');
+  const velMax = isH ? 4.0 : 2.5;
 
-  return `<div class="ahu-card">
-    <div class="ahu-head">
-      <div class="ahu-num">${i+1}</div>
-      <input class="ahu-name" value="${a.name}" oninput="upd(${a.id},'name',this.value,false)" onchange="upd(${a.id},'name',this.value)">
-      <input class="ahu-loc" value="${a.loc}" placeholder="Location / Zone" oninput="upd(${a.id},'loc',this.value,false)" onchange="upd(${a.id},'loc',this.value)">
-      <div class="ahu-actions">
-        <button class="btn btn-ghost btn-sm" onclick="dupAHU(${a.id})">Duplicate</button>
-        <button class="btn btn-danger btn-sm" onclick="removeAHU(${a.id})">Remove</button>
-      </div>
+  return `<div class="ahu-card" id="ahu-${a.id}">
+  <div class="ahu-head">
+    <div class="ahu-num">${i+1}</div>
+    <input class="ahu-name" data-fid="${a.id}-name" value="${esc(a.name)}" placeholder="AHU Name" oninput="upd(${a.id},'name',this.value)">
+    <input class="ahu-loc"  data-fid="${a.id}-loc"  value="${esc(a.loc)}"  placeholder="Location / Zone" oninput="upd(${a.id},'loc',this.value)">
+    <div class="ahu-actions">
+      <button class="btn btn-ghost btn-sm" onclick="dupAHU(${a.id})">Duplicate</button>
+      <button class="btn btn-danger btn-sm" onclick="removeAHU(${a.id})">Remove</button>
     </div>
-    <div class="ahu-body">
-      <div class="grid2">
-        <div class="panel">
-          <div class="panel-head"><span class="panel-title">📐 AHU External Dimensions & Airflow</span><span class="tag ${isH?'tag-h':'tag-c'}">${isH?'🔥 Heating':'❄️ Cooling'}</span></div>
-          <div class="panel-body">
-            <div class="fr"><div class="fl">Coil Type</div><div class="fi">
+  </div>
+  <div class="ahu-body">
+    <div class="grid2">
+
+      <!-- Section 1: Dimensions & Airflow -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">📐 AHU External Dimensions &amp; Airflow</span>
+          <span class="tag ${isH?'tag-h':'tag-c'}">${isH?'🔥 Heating':'❄️ Cooling'}</span>
+        </div>
+        <div class="panel-body">
+          <div class="fr">
+            <div class="fl">Coil Type</div>
+            <div class="fi">
               <div class="coil-sel">
-                <div class="coil-btn ${isH?'h-on':''}" onclick="setCoil(${a.id},'heating')">🔥 Heating<br><small>max 4.0 m/s</small></div>
-                <div class="coil-btn ${!isH?'c-on':''}" onclick="setCoil(${a.id},'cooling')">❄️ Cooling<br><small>max 2.0 m/s</small></div>
-              </div></div></div>
-            <div class="two">
-              <div class="fr" style="margin:0"><div class="fl" style="width:90px">Width (mm)</div><div class="fi"><input type="number" value="${a.w}" oninput="upd(${a.id},'w',+this.value,false)" onchange="upd(${a.id},'w',+this.value)"></div></div>
-              <div class="fr" style="margin:0"><div class="fl" style="width:90px">Height (mm)</div><div class="fi"><input type="number" value="${a.h}" oninput="upd(${a.id},'h',+this.value,false)" onchange="upd(${a.id},'h',+this.value)"></div></div>
+                <div class="coil-btn ${isH?'h-on':''}"  onclick="setCoil(${a.id},'heating')">🔥 Heating<br><small>max 4.0 m/s</small></div>
+                <div class="coil-btn ${!isH?'c-on':''}" onclick="setCoil(${a.id},'cooling')">❄️ Cooling<br><small>max 2.5 m/s</small></div>
+              </div>
             </div>
-            <hr>
-            <div class="fr"><div class="fl">Main Internal AHU Velocity</div><div class="fi"><div class="sld">
-              <input type="range" min="0.5" max="${velMax}" step="0.1" value="${Math.min(a.vel,velMax)}" oninput="upd(${a.id},'vel',+this.value,false);this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s'" onchange="upd(${a.id},'vel',+this.value)">
-              <span class="sval">${a.vel.toFixed(1)} m/s</span></div>
+          </div>
+          <div class="two">
+            <div class="fr" style="margin:0">
+              <div class="fl" style="width:90px">Width (mm)</div>
+              <div class="fi"><input type="text" inputmode="numeric" value="${a.w}" data-fid="${a.id}-w" oninput="numUpd(${a.id},'w',this.value)"></div>
+            </div>
+            <div class="fr" style="margin:0">
+              <div class="fl" style="width:90px">Height (mm)</div>
+              <div class="fi"><input type="text" inputmode="numeric" value="${a.h}" data-fid="${a.id}-h" oninput="numUpd(${a.id},'h',this.value)"></div>
+            </div>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--bdr);margin:10px 0">
+          <div class="fr">
+            <div class="fl">Face Velocity</div>
+            <div class="fi">
+              <div class="sld">
+                <input type="range" min="0.5" max="${velMax}" step="0.1" value="${Math.min(a.vel,velMax)}"
+                  oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s';updNoRender(${a.id},'vel',+this.value)"
+                  onchange="render()">
+                <span class="sval">${a.vel.toFixed(1)} m/s</span>
+              </div>
               <div class="note">Recommended max: ${velMax.toFixed(1)} m/s for ${isH?'heating':'cooling'}</div>
-            </div></div>
-            <div class="res">
-              <h4>Airflow Results</h4>
-              <div class="rr"><span class="rl">Face Area</span><span class="rv">${r.faceArea.toFixed(2)} m²</span></div>
-              <div class="rr"><span class="rl">Max Airflow</span><span class="rv big">${Math.round(r.airflowMh).toLocaleString()} m³/h</span></div>
-              <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${r.airflowMs.toFixed(3)} m³/s</span></div>
-              <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${Math.round(r.airflowLs).toLocaleString()} l/s</span></div>
-              <div class="rr"><span class="rl">Velocity Status</span><span class="rv"><span class="tag ${r.velOk?'tag-ok':'tag-warn'}">${r.velOk?'✓ Within limit':'⚠ Exceeds limit'}</span></span></div>
-            </div>
-            <hr>
-            <div class="fr"><div class="fl">Main Duct Type</div><div class="fi">
-              <select onchange="upd(${a.id},'ductShape',this.value)">
-                <option value="rect" ${a.ductShape==='rect'?'selected':''}>Rectangular</option>
-                <option value="round" ${a.ductShape==='round'?'selected':''}>Spiral Round</option>
-              </select>
-            </div></div>
-            ${a.ductShape==='round'
-              ? `<div class="fr"><div class="fl">Duct Ø (mm)</div><div class="fi"><input type="number" value="${a.ductDia}" oninput="upd(${a.id},'ductDia',+this.value,false)" onchange="upd(${a.id},'ductDia',+this.value)"></div></div>`
-              : `<div class="two">
-                  <div class="fr" style="margin:0"><div class="fl" style="width:90px">Duct W (mm)</div><div class="fi"><input type="number" value="${a.ductW}" oninput="upd(${a.id},'ductW',+this.value,false)" onchange="upd(${a.id},'ductW',+this.value)"></div></div>
-                  <div class="fr" style="margin:0"><div class="fl" style="width:90px">Duct H (mm)</div><div class="fi"><input type="number" value="${a.ductH}" oninput="upd(${a.id},'ductH',+this.value,false)" onchange="upd(${a.id},'ductH',+this.value)"></div></div>
-                </div>`}
-            <div class="res" style="margin-top:10px">
-              <h4>Main Duct Cross-check</h4>
-              <div class="rr"><span class="rl">Duct Area</span><span class="rv">${r.ductArea.toFixed(3)} m²</span></div>
-              <div class="rr"><span class="rl">Velocity @ AHU Flow</span><span class="rv ${r.ductBandClass}">${r.ductVel.toFixed(2)} m/s</span></div>
-              <div class="rr"><span class="rl">Expected Flow Band</span><span class="rv">${r.ductBand}</span></div>
-              <div class="note">${r.ductGuide}</div>
             </div>
           </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-head"><span class="panel-title">💧 Wet Coil Analysis</span>
-            <label class="toggler" onclick="toggle(${a.id},'wetCoil')"><div class="sw ${a.wetCoil?'on':''}"></div><span>${a.wetCoil?'Enabled':'Disabled'}</span></label>
-          </div>
-          <div class="panel-body ${a.wetCoil?'':'disabled'}">
-            <div class="fr"><div class="fl">Pipe Size (OD)</div><div class="fi"><select onchange="upd(${a.id},'pipe',this.value)">${pipeOpts}</select></div></div>
-            ${a.pipe==='Custom'?`<div class="fr"><div class="fl">Custom Int. Dia (mm)</div><div class="fi"><input type="number" value="${a.pipeCustom}" oninput="upd(${a.id},'pipeCustom',+this.value,false)" onchange="upd(${a.id},'pipeCustom',+this.value)"></div></div>`:''}
-            <div class="fr"><div class="fl">Fluid Type</div><div class="fi"><select onchange="upd(${a.id},'fluid',this.value)">${fluidOpts}</select></div></div>
-            <div class="fr"><div class="fl">Water ΔT (°C)</div><div class="fi"><div class="sld">
-              <input type="range" min="2" max="30" step="1" value="${a.dT}" oninput="upd(${a.id},'dT',+this.value,false);this.nextElementSibling.textContent=this.value+'°C'" onchange="upd(${a.id},'dT',+this.value)">
-              <span class="sval">${a.dT}°C</span></div></div></div>
-            ${a.wetCoil?`<div class="res">
-              <h4>Wet Coil Results</h4>
-              <div class="rr"><span class="rl">Int. Diameter Used</span><span class="rv">${r.pipeDia} mm</span></div>
-              <div class="rr"><span class="rl">Water Velocity</span><span class="rv">${r.wVel.toFixed(2)} m/s</span></div>
-              <div class="rr"><span class="rl">Water Flow Rate</span><span class="rv">${r.wFlowLs.toFixed(2)} l/s (${r.wFlowLm.toFixed(1)} l/min)</span></div>
-              <div class="rr"><span class="rl">Coil Duty</span><span class="rv big">${r.duty.toFixed(1)} kW</span></div>
-              <div class="rr"><span class="rl">Air Temp ${r.isHeat?'Rise':'Drop'}</span><span class="rv ${r.isHeat?'hot':'cool'}">${r.isHeat?'+':'−'}${r.airDT.toFixed(1)}°C</span></div>
-            </div>`:''}
-          </div>
-        </div>
-
-        <div class="panel full">
-          <div class="panel-head"><span class="panel-title">🌿 Fresh Air / Outside Air Analysis</span>
-            <label class="toggler" onclick="toggle(${a.id},'fa')"><div class="sw ${a.fa?'on':''}"></div><span>${a.fa?'Enabled':'Disabled'}</span></label>
-          </div>
-          <div class="panel-body ${a.fa?'':'disabled'}">
-            ${a.fa?renderFA(a,r):'<div class="note">Enable fresh air analysis to calculate OA heat loads and mixed air conditions.</div>'}
+          <div class="res">
+            <h4>Airflow Results</h4>
+            <div class="rr"><span class="rl">Face Area</span><span class="rv">${r.faceArea.toFixed(2)} m²</span></div>
+            <div class="rr"><span class="rl">Max Airflow</span><span class="rv big">${fmt0(r.airflowMh)} m³/h</span></div>
+            <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${r.airflowMs.toFixed(3)} m³/s</span></div>
+            <div class="rr"><span class="rl">Max Airflow</span><span class="rv">${fmt0(r.airflowLs)} l/s</span></div>
+            <div class="rr">
+              <span class="rl">Velocity Status</span>
+              <span class="rv"><span class="tag ${r.velOk?'tag-ok':'tag-warn'}">${r.velOk?'✓ Within limit':'⚠ Exceeds limit'}</span></span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>`;
+
+      <!-- Section 2: Wet Coil -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">💧 Wet Coil Analysis</span>
+          <label class="toggler" onclick="toggle(${a.id},'wetCoil')">
+            <div class="sw ${a.wetCoil?'on':''}"></div>
+            <span>${a.wetCoil?'Enabled':'Disabled'}</span>
+          </label>
+        </div>
+        <div class="panel-body ${a.wetCoil?'':'disabled'}">
+          <div class="fr">
+            <div class="fl">Pipe Size (OD)</div>
+            <div class="fi"><select onchange="upd(${a.id},'pipe',this.value)">${pipeOpts}</select></div>
+          </div>
+          ${a.pipe==='Custom'?`
+          <div class="fr">
+            <div class="fl">Custom Int. Dia (mm)</div>
+            <div class="fi"><input type="text" inputmode="numeric" value="${a.pipeCustom}" data-fid="${a.id}-pipeCustom" oninput="numUpd(${a.id},'pipeCustom',this.value)"></div>
+          </div>`:''}
+          <div class="fr">
+            <div class="fl">Fluid Type</div>
+            <div class="fi"><select onchange="upd(${a.id},'fluid',this.value)">${fluidOpts}</select></div>
+          </div>
+          <div class="fr">
+            <div class="fl">Water ΔT (°C)</div>
+            <div class="fi">
+              <div class="sld">
+                <input type="range" min="2" max="30" step="1" value="${a.dT}"
+                  oninput="this.nextElementSibling.textContent=this.value+'°C';updNoRender(${a.id},'dT',+this.value)"
+                  onchange="render()">
+                <span class="sval">${a.dT}°C</span>
+              </div>
+              <div class="note">${isH?'Flow/Return e.g. 80/70°C':'Flow/Return e.g. 6/12°C'}</div>
+            </div>
+          </div>
+          ${a.wetCoil?`
+          <div class="res">
+            <h4>Wet Coil Results <span style="font-weight:400;text-transform:none">(at 300 Pa/m max)</span></h4>
+            <div class="rr"><span class="rl">Int. Diameter Used</span><span class="rv">${r.pipeDia} mm</span></div>
+            <div class="rr"><span class="rl">Water Velocity</span><span class="rv">${r.wVel.toFixed(2)} m/s</span></div>
+            <div class="rr"><span class="rl">Water Flow Rate</span><span class="rv">${r.wFlowLs.toFixed(2)} l/s (${r.wFlowLm.toFixed(1)} l/min)</span></div>
+            <div class="rr"><span class="rl">Coil Duty</span><span class="rv big">${r.duty.toFixed(1)} kW</span></div>
+            <div class="rr">
+              <span class="rl">Air Temp ${r.isHeat?'Rise':'Drop'}</span>
+              <span class="rv ${r.isHeat?'hot':'cool'}">${r.isHeat?'+':'−'}${r.airDT.toFixed(1)}°C across coil</span>
+            </div>
+            <div class="rr"><span class="rl">Est. Supply Temp</span><span class="rv">${r.supplyTemp.toFixed(1)}°C (from ${a.raTemp}°C return)</span></div>
+          </div>
+          <div class="note" style="margin-top:6px">Darcy-Weisbach, f=0.02. Sense-check only.</div>
+          `:'<div class="note" style="margin-top:8px">Enable wet coil analysis to calculate pipe flow, duty and air temperature change.</div>'}
+        </div>
+      </div>
+
+      <!-- Section 3: Fresh Air -->
+      <div class="panel full">
+        <div class="panel-head">
+          <span class="panel-title">🌿 Fresh Air / Outside Air Analysis</span>
+          <label class="toggler" onclick="toggle(${a.id},'fa')">
+            <div class="sw ${a.fa?'on':''}"></div>
+            <span>${a.fa?'Enabled':'Disabled'}</span>
+          </label>
+        </div>
+        <div class="panel-body ${a.fa?'':'disabled'}">
+          ${a.fa ? renderFA(a,r) : '<div class="note">Enable fresh air analysis to calculate OA heat loads and mixed air conditions.</div>'}
+        </div>
+      </div>
+
+      <!-- Section 4: Duct Sense-Check -->
+      <div class="panel full">
+        <div class="panel-head">
+          <span class="panel-title">📏 Main Supply Duct Sense-Check</span>
+          <label class="toggler" onclick="toggle(${a.id},'duct')">
+            <div class="sw ${a.duct?'on':''}"></div>
+            <span>${a.duct?'Enabled':'Disabled'}</span>
+          </label>
+        </div>
+        <div class="panel-body ${a.duct?'':'disabled'}">
+          ${a.duct ? renderDuct(a,r) : '<div class="note">Enable duct sense-check to calculate main branch velocity and compare against ASHRAE guidelines.</div>'}
+        </div>
+      </div>
+
+    </div><!-- /grid2 -->
+    ${renderSummary(a,r)}
+  </div>
+</div>`;
 }
 
+// ── Fresh Air panel ───────────────────────────────────────────────────────────
 function renderFA(a,r){
-  const dT=a.raTemp-a.oaTemp, heatCool=dT>0?'🔥 Heating load':'❄️ Cooling load';
-  return `<div class="grid2" style="gap:16px">
+  const dT = a.raTemp - a.oaTemp;
+  const heatCool = dT>0 ? '🔥 Heating load' : '❄️ Cooling load';
+  return `
+  <div class="grid2" style="gap:16px">
     <div>
       <strong style="font-size:13px;color:var(--pri)">Method A — OA Inlet Face</strong>
+      <div class="note" style="margin-bottom:10px">Measure the OA louvre / damper face size</div>
       <div class="two">
-        <div class="fr" style="margin:0"><div class="fl" style="width:80px">Width (mm)</div><div class="fi"><input type="number" value="${a.faW}" oninput="upd(${a.id},'faW',+this.value,false)" onchange="upd(${a.id},'faW',+this.value)"></div></div>
-        <div class="fr" style="margin:0"><div class="fl" style="width:80px">Height (mm)</div><div class="fi"><input type="number" value="${a.faH}" oninput="upd(${a.id},'faH',+this.value,false)" onchange="upd(${a.id},'faH',+this.value)"></div></div>
+        <div class="fr" style="margin:0">
+          <div class="fl" style="width:80px">Width (mm)</div>
+          <div class="fi"><input type="text" inputmode="numeric" value="${a.faW}" data-fid="${a.id}-faW" oninput="numUpd(${a.id},'faW',this.value)"></div>
+        </div>
+        <div class="fr" style="margin:0">
+          <div class="fl" style="width:80px">Height (mm)</div>
+          <div class="fi"><input type="text" inputmode="numeric" value="${a.faH}" data-fid="${a.id}-faH" oninput="numUpd(${a.id},'faH',this.value)"></div>
+        </div>
       </div>
-      <div class="fr"><div class="fl">Face Velocity</div><div class="fi"><div class="sld">
-        <input type="range" min="0.5" max="3.0" step="0.1" value="${a.faVel}" oninput="upd(${a.id},'faVel',+this.value,false);this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s'" onchange="upd(${a.id},'faVel',+this.value)">
-        <span class="sval">${a.faVel.toFixed(1)} m/s</span>
-      </div></div></div>
-      <div class="res">
+      <div class="fr" style="margin-top:10px">
+        <div class="fl">Face Velocity</div>
+        <div class="fi">
+          <div class="sld">
+            <input type="range" min="0.5" max="3.0" step="0.1" value="${a.faVel}"
+              oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' m/s';updNoRender(${a.id},'faVel',+this.value)"
+              onchange="render()">
+            <span class="sval">${a.faVel.toFixed(1)} m/s</span>
+          </div>
+          <div class="note">Typical max 1.5 m/s at inlet louvre</div>
+        </div>
+      </div>
+      <div class="res" style="margin-top:10px">
         <h4>From Inlet Face</h4>
         <div class="rr"><span class="rl">OA Inlet Area</span><span class="rv">${r.faArea.toFixed(2)} m²</span></div>
-        <div class="rr"><span class="rl">Max Fresh Air Volume</span><span class="rv big">${Math.round(r.faFlowFaceMh).toLocaleString()} m³/h</span></div>
+        <div class="rr"><span class="rl">Max Fresh Air Volume</span><span class="rv big">${fmt0(r.faFlowFaceMh)} m³/h</span></div>
+        <div class="rr"><span class="rl">Max Fresh Air Volume</span><span class="rv">${r.faFlowFace.toFixed(3)} m³/s</span></div>
+        <div class="rr"><span class="rl">As % of AHU total flow</span><span class="rv">${r.faPctOfAHU.toFixed(0)}%</span></div>
+        <div class="rr"><span class="rl">${heatCool} (OA→RA)</span><span class="rv ${dT>0?'hot':'cool'}">${r.faLoadFace.toFixed(1)} kW</span></div>
       </div>
     </div>
+
     <div>
       <strong style="font-size:13px;color:var(--pri)">Method B — Fresh Air Percentage</strong>
-      <div class="fr"><div class="fl">Supply Air Temp</div><div class="fi"><input type="number" value="${a.raTemp}" oninput="upd(${a.id},'raTemp',+this.value,false)" onchange="upd(${a.id},'raTemp',+this.value)"></div></div>
-      <div class="fr"><div class="fl">Outside Air Temp</div><div class="fi"><div class="sld">
-        <input type="range" min="-10" max="40" step="1" value="${a.oaTemp}" oninput="upd(${a.id},'oaTemp',+this.value,false);this.nextElementSibling.textContent=((+this.value)>0?'+':'')+this.value+'°C'" onchange="upd(${a.id},'oaTemp',+this.value)">
-        <span class="sval">${a.oaTemp>0?'+':''}${a.oaTemp}°C</span></div></div></div>
-      <div class="fr"><div class="fl">Fresh Air %</div><div class="fi"><div class="sld">
-        <input type="range" min="5" max="100" step="5" value="${a.faPercent}" oninput="upd(${a.id},'faPercent',+this.value,false);this.nextElementSibling.textContent=this.value+'%'" onchange="upd(${a.id},'faPercent',+this.value)">
-        <span class="sval">${a.faPercent}%</span></div></div></div>
-      <div class="res">
-        <h4>From FA %</h4>
-        <div class="rr"><span class="rl">Fresh Air Volume</span><span class="rv big">${Math.round(r.faFlowPctMh).toLocaleString()} m³/h</span></div>
+      <div class="note" style="margin-bottom:10px">Set the fresh air fraction of total AHU supply</div>
+      <div class="fr">
+        <div class="fl">Supply Air Temp</div>
+        <div class="fi">
+          <input type="text" inputmode="numeric" value="${a.raTemp}" data-fid="${a.id}-raTemp"
+            oninput="numUpd(${a.id},'raTemp',this.value)"
+            style="width:100%;padding:5px 9px;border:1px solid var(--bdr);border-radius:6px;font-size:13px;outline:none;background:#fff;color:var(--txt)">
+          <div class="note">Indoor air condition target (°C) — used for the OA mixing calculation</div>
+        </div>
+      </div>
+      <div class="fr">
+        <div class="fl">Outside Air Temp</div>
+        <div class="fi">
+          <div class="sld">
+            <input type="range" min="-10" max="40" step="1" value="${a.oaTemp}"
+              oninput="this.nextElementSibling.textContent=(+this.value>0?'+':'')+this.value+'°C';updNoRender(${a.id},'oaTemp',+this.value)"
+              onchange="render()">
+            <span class="sval">${a.oaTemp>0?'+':''}${a.oaTemp}°C</span>
+          </div>
+          <div class="note">Range: −10°C (winter) to +40°C (summer)</div>
+        </div>
+      </div>
+      <div class="fr">
+        <div class="fl">Fresh Air %</div>
+        <div class="fi">
+          <div class="sld">
+            <input type="range" min="5" max="100" step="5" value="${a.faPercent}"
+              oninput="this.nextElementSibling.textContent=this.value+'%';updNoRender(${a.id},'faPercent',+this.value)"
+              onchange="render()">
+            <span class="sval">${a.faPercent}%</span>
+          </div>
+          <div class="note">Typically 10–30% for recirculating AHU; 100% = full fresh air</div>
+        </div>
+      </div>
+      <div class="res" style="margin-top:10px">
+        <h4>From FA % (${a.faPercent}% of ${fmt0(r.airflowMh)} m³/h)</h4>
+        <div class="rr"><span class="rl">Fresh Air Volume</span><span class="rv big">${fmt0(r.faFlowPctMh)} m³/h</span></div>
+        <div class="rr"><span class="rl">Fresh Air Volume</span><span class="rv">${r.faFlowPct.toFixed(3)} m³/s</span></div>
+        <div class="rr"><span class="rl">ΔT (OA→RA)</span><span class="rv">${Math.abs(dT).toFixed(1)}°C ${dT>0?'(heating req.)':'(cooling req.)'}</span></div>
         <div class="rr"><span class="rl">${heatCool}</span><span class="rv ${dT>0?'hot':'cool'}">${r.faLoadPct.toFixed(1)} kW</span></div>
-        <div class="rr"><span class="rl">Mixed Air Temp</span><span class="rv">${r.mixedTemp.toFixed(1)}°C</span></div>
+        <div class="rr"><span class="rl">Mixed Air Temperature</span><span class="rv">${r.mixedTemp.toFixed(1)}°C</span></div>
+        ${a.wetCoil?`
+        <div class="rr"><span class="rl">Coil Maximum Duty</span><span class="rv">${r.duty.toFixed(1)} kW</span></div>
+        <div class="rr">
+          <span class="rl">FA ${r.faPenalty>=0?'Penalty (extra coil work)':'Benefit (helps coil)'}</span>
+          <span class="rv ${r.faPenalty>=0?'warn':'cool'}">${r.faPenalty>=0?'+':''}${r.faPenalty.toFixed(1)} kW</span>
+        </div>
+        <div class="rr">
+          <span class="rl">Net Duty Available for Building</span>
+          <span class="rv ${r.canHandle?'big':'warn'}">${r.netDuty.toFixed(1)} kW</span>
+        </div>
+        <div class="rr">
+          <span class="rl">Coil adequacy</span>
+          <span class="rv"><span class="tag ${r.canHandle?'tag-ok':'tag-warn'}">${r.canHandle?'✓ Capacity remaining for room load':'⚠ FA exceeds coil capacity'}</span></span>
+        </div>`:''}
       </div>
     </div>
   </div>`;
 }
 
-function upd(id,key,val,rerender=true){
-  const a=state.ahus.find(x=>x.id===id); if(!a) return;
-  a[key]=val;
-  if(key==='coilType'){ const mx=val==='heating'?4.0:2.0; if(a.vel>mx)a.vel=mx; }
-  if(rerender) render();
+// ── Duct Sense-Check panel ────────────────────────────────────────────────────
+function renderDuct(a,r){
+  const isRect = a.ductShape==='rect';
+  const gi = DUCT_GRADES[r.ductGrade] || DUCT_GRADES.ok;
+  return `
+  <div class="grid2" style="gap:16px">
+    <div>
+      <strong style="font-size:13px;color:var(--pri)">Duct Shape &amp; Dimensions</strong>
+      <div class="note" style="margin-bottom:10px">Measure the main supply branch off the AHU</div>
+      <div class="shape-sel">
+        <div class="shape-btn ${isRect?'on':''}"  onclick="upd(${a.id},'ductShape','rect')">▭ Rectangular</div>
+        <div class="shape-btn ${!isRect?'on':''}" onclick="upd(${a.id},'ductShape','round')">◯ Round / Spiral</div>
+      </div>
+      ${isRect?`
+      <div class="two">
+        <div class="fr" style="margin:0">
+          <div class="fl" style="width:80px">Width (mm)</div>
+          <div class="fi"><input type="text" inputmode="numeric" value="${a.ductW}" data-fid="${a.id}-ductW" oninput="numUpd(${a.id},'ductW',this.value)"></div>
+        </div>
+        <div class="fr" style="margin:0">
+          <div class="fl" style="width:80px">Height (mm)</div>
+          <div class="fi"><input type="text" inputmode="numeric" value="${a.ductH}" data-fid="${a.id}-ductH" oninput="numUpd(${a.id},'ductH',this.value)"></div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:8px">Equivalent diameter (Huebscher): ${r.ductEqDia} mm</div>
+      `:`
+      <div class="fr" style="margin-top:4px">
+        <div class="fl" style="width:120px">Diameter (mm)</div>
+        <div class="fi"><input type="text" inputmode="numeric" value="${a.ductD}" data-fid="${a.id}-ductD" oninput="numUpd(${a.id},'ductD',this.value)"></div>
+      </div>
+      `}
+    </div>
+
+    <div>
+      <strong style="font-size:13px;color:var(--pri)">Velocity Results &amp; ASHRAE Assessment</strong>
+      <div class="note" style="margin-bottom:10px">Based on AHU total airflow at selected face velocity</div>
+      <div class="res">
+        <h4>Main Branch Duct — ASHRAE Sense-Check</h4>
+        <div class="rr"><span class="rl">Duct Cross-Section Area</span><span class="rv">${r.ductArea.toFixed(3)} m²</span></div>
+        <div class="rr"><span class="rl">AHU Airflow (reference)</span><span class="rv">${fmt0(r.airflowMh)} m³/h</span></div>
+        <div class="rr"><span class="rl">Duct Velocity</span><span class="rv big">${r.ductVel.toFixed(1)} m/s</span></div>
+        <div class="rr">
+          <span class="rl">ASHRAE Assessment</span>
+          <span class="rv"><span class="tag ${gi.cls}">${gi.txt}</span></span>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--pri);margin-bottom:4px">ASHRAE Main Supply Duct Guidelines (HVAC Systems &amp; Equipment):</div>
+        <table class="ashrae-tbl">
+          <tr class="${r.ductGrade==='vslow'?'cur':''}"><td>&lt; 3 m/s</td><td>Below recommended — duct likely oversized</td></tr>
+          <tr class="${r.ductGrade==='low'  ?'cur':''}"><td>3 – 5 m/s</td><td>Low velocity — residential / quiet commercial</td></tr>
+          <tr class="${r.ductGrade==='ok'   ?'cur':''}"><td>5 – 8 m/s</td><td>✓ Recommended — standard commercial main supply</td></tr>
+          <tr class="${r.ductGrade==='hi'   ?'cur':''}"><td>8 – 12.5 m/s</td><td>⚠ High velocity — ASHRAE high-pressure system limit</td></tr>
+          <tr class="${r.ductGrade==='exceed'?'cur':''}"><td>&gt; 12.5 m/s</td><td>✗ Exceeds ASHRAE maximum — noise &amp; pressure risk</td></tr>
+        </table>
+        <div class="note" style="margin-top:6px">Ref: ASHRAE Handbook — HVAC Systems &amp; Equipment, Duct Design chapter. Sense-check only.</div>
+      </div>
+    </div>
+  </div>`;
 }
-function toggle(id,key){ const a=state.ahus.find(x=>x.id===id); if(!a) return; a[key]=!a[key]; render(); }
-function setCoil(id,type){ const a=state.ahus.find(x=>x.id===id); if(!a) return; a.coilType=type; const mx=type==='heating'?4.0:2.0; if(a.vel>mx)a.vel=mx; render(); }
 
-function exportCSV(){ alert('CSV export is included in your original full version.'); }
-function exportExcel(){ alert('Excel export is included in your original full version.'); }
-function exportPDF(){ alert('PDF export is included in your original full version.'); }
+// ── Summary bar ───────────────────────────────────────────────────────────────
+function renderSummary(a,r){
+  const isH = a.coilType==='heating';
+  return `
+  <div class="summary-bar">
+    <h3>Summary — ${esc(a.name)} ${a.loc?'| '+esc(a.loc):''}</h3>
+    <div class="sum-grid">
+      <div class="sum-item">
+        <div class="sum-lbl">Face Area</div>
+        <div class="sum-val">${r.faceArea.toFixed(2)}</div>
+        <div class="sum-unit">m²</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Max Airflow</div>
+        <div class="sum-val">${fmt0(r.airflowMh)}</div>
+        <div class="sum-unit">m³/h</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Face Velocity</div>
+        <div class="sum-val">${a.vel.toFixed(1)}</div>
+        <div class="sum-unit">m/s ${r.velOk?'✓':'⚠'}</div>
+      </div>
+      ${a.wetCoil?`
+      <div class="sum-item">
+        <div class="sum-lbl">${isH?'Heating':'Cooling'} Duty</div>
+        <div class="sum-val">${r.duty.toFixed(1)}</div>
+        <div class="sum-unit">kW</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Water Flow</div>
+        <div class="sum-val">${r.wFlowLs.toFixed(2)}</div>
+        <div class="sum-unit">l/s</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Air ΔT (coil)</div>
+        <div class="sum-val">${r.isHeat?'+':'−'}${r.airDT.toFixed(1)}</div>
+        <div class="sum-unit">°C</div>
+      </div>`:''}
+      ${a.fa?`
+      <div class="sum-item">
+        <div class="sum-lbl">Max FA (face)</div>
+        <div class="sum-val">${fmt0(r.faFlowFaceMh)}</div>
+        <div class="sum-unit">m³/h</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">FA Load (${a.faPercent}%)</div>
+        <div class="sum-val">${r.faLoadPct.toFixed(1)}</div>
+        <div class="sum-unit">kW</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Mixed Air Temp</div>
+        <div class="sum-val">${r.mixedTemp.toFixed(1)}</div>
+        <div class="sum-unit">°C</div>
+      </div>`:''}
+      ${a.duct?`
+      <div class="sum-item">
+        <div class="sum-lbl">Duct Velocity</div>
+        <div class="sum-val">${r.ductVel.toFixed(1)}</div>
+        <div class="sum-unit">m/s ${r.ductGrade==='ok'||r.ductGrade==='low'?'✓':r.ductGrade==='vslow'?'':r.ductGrade==='hi'?'⚠':'✗'}</div>
+      </div>`:''}
+    </div>
+  </div>`;
+}
 
-document.getElementById('projDate').value=state.date;
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt0(v){ return Math.round(v).toLocaleString(); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Update state from a numeric text input — ignores empty/non-numeric so cursor isn't lost
+function numUpd(id, key, rawVal){
+  const v = parseFloat(rawVal);
+  if(!isNaN(v)) upd(id, key, v);
+}
+
+// Update state without triggering a render (used by slider oninput for live display)
+function updNoRender(id, key, val){
+  const a = state.ahus.find(x=>x.id===id);
+  if(!a) return;
+  a[key] = val;
+}
+
+function upd(id, key, val){
+  const a = state.ahus.find(x=>x.id===id);
+  if(!a) return;
+  a[key] = val;
+  if(key==='coilType'){
+    const mx = val==='heating'?4.0:2.5;
+    if(a.vel>mx) a.vel=mx;
+  }
+  render();
+}
+
+function toggle(id, key){
+  const a = state.ahus.find(x=>x.id===id);
+  if(!a) return;
+  a[key] = !a[key];
+  render();
+}
+
+function setCoil(id, type){
+  const a = state.ahus.find(x=>x.id===id);
+  if(!a) return;
+  a.coilType = type;
+  const mx = type==='heating'?4.0:2.5;
+  if(a.vel>mx) a.vel=mx;
+  render();
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!state.ahus.length){alert('No AHUs to export.');return;}
+  const rows=[
+    ['AHU Sizing Calculator Export'],
+    ['Project',state.projectName,'Ref',state.projectRef,'Engineer',state.engineer,'Date',state.date],
+    [],
+    ['Name','Location','W (mm)','H (mm)','Face Area (m²)','Coil Type','Face Vel (m/s)','Airflow (m³/h)','Airflow (m³/s)','Airflow (l/s)','Vel OK',
+     'Wet Coil','Pipe (mm)','Water Vel (m/s)','Water Flow (l/s)','Duty (kW)','Air ΔT (°C)',
+     'Fresh Air','FA Inlet Area (m²)','Max FA (m³/h)','FA % of Total','FA % Setting','OA Temp (°C)','RA Temp (°C)','FA Load (kW)','Mixed Air Temp (°C)',
+     'Duct Check','Duct Shape','Duct W (mm)','Duct H (mm)','Duct D (mm)','Duct Area (m²)','Duct Velocity (m/s)','ASHRAE Band']
+  ];
+  state.ahus.forEach(a=>{
+    const r=calc(a);
+    rows.push([
+      a.name,a.loc,a.w,a.h,r.faceArea.toFixed(2),a.coilType,a.vel,fmt0(r.airflowMh),r.airflowMs.toFixed(3),fmt0(r.airflowLs),r.velOk?'Yes':'No',
+      a.wetCoil?'Yes':'No',a.wetCoil?r.pipeDia:'',a.wetCoil?r.wVel.toFixed(2):'',a.wetCoil?r.wFlowLs.toFixed(2):'',a.wetCoil?r.duty.toFixed(1):'',a.wetCoil?(r.isHeat?'+':'-')+r.airDT.toFixed(1):'',
+      a.fa?'Yes':'No',a.fa?r.faArea.toFixed(2):'',a.fa?fmt0(r.faFlowFaceMh):'',a.fa?r.faPctOfAHU.toFixed(0):'',a.fa?a.faPercent:'',a.fa?a.oaTemp:'',a.fa?a.raTemp:'',a.fa?r.faLoadPct.toFixed(1):'',a.fa?r.mixedTemp.toFixed(1):'',
+      a.duct?'Yes':'No',a.duct?a.ductShape:'',
+      a.duct&&a.ductShape==='rect'?a.ductW:'',a.duct&&a.ductShape==='rect'?a.ductH:'',
+      a.duct&&a.ductShape!=='rect'?a.ductD:'',
+      a.duct?r.ductArea.toFixed(3):'',a.duct?r.ductVel.toFixed(1):'',a.duct?r.ductGrade:''
+    ]);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv'}),'AHU-Sizing.csv');
+}
+
+// ── Export Excel ──────────────────────────────────────────────────────────────
+function exportExcel(){
+  if(!state.ahus.length){alert('No AHUs to export.');return;}
+  if(typeof XLSX==='undefined'){alert('Excel library not loaded. Check internet connection.');return;}
+  const wb=XLSX.utils.book_new();
+  const hdr=[
+    'Name','Location','Width (mm)','Height (mm)','Face Area (m²)','Coil Type','Face Vel (m/s)',
+    'Airflow (m³/h)','Airflow (m³/s)','Airflow (l/s)','Velocity OK',
+    'Wet Coil','Pipe Int Dia (mm)','Water Vel (m/s)','Water Flow (l/s)','Coil Duty (kW)','Air ΔT (°C)','Est Supply Temp (°C)',
+    'Fresh Air','FA Inlet Area (m²)','Max FA (m³/h)','FA Face %','FA %','OA Temp (°C)','RA Temp (°C)','FA Load (kW)','Mixed Air Temp (°C)',
+    'Duct Check','Duct Shape','Duct W (mm)','Duct H (mm)','Duct D (mm)','Duct Area (m²)','Duct Velocity (m/s)','ASHRAE Band'
+  ];
+  const data=[hdr];
+  state.ahus.forEach(a=>{
+    const r=calc(a);
+    data.push([
+      a.name,a.loc,a.w,a.h,+r.faceArea.toFixed(2),a.coilType,a.vel,
+      +fmt0(r.airflowMh).replace(/,/g,''),+r.airflowMs.toFixed(3),+fmt0(r.airflowLs).replace(/,/g,''),r.velOk?'Yes':'No',
+      a.wetCoil?'Yes':'No',a.wetCoil?r.pipeDia:'',a.wetCoil?+r.wVel.toFixed(2):'',a.wetCoil?+r.wFlowLs.toFixed(2):'',
+      a.wetCoil?+r.duty.toFixed(1):'',a.wetCoil?+(r.isHeat?1:-1)*r.airDT:'',a.wetCoil?+r.supplyTemp.toFixed(1):'',
+      a.fa?'Yes':'No',a.fa?+r.faArea.toFixed(2):'',a.fa?+r.faFlowFaceMh.toFixed(0):'',a.fa?+r.faPctOfAHU.toFixed(0):'',
+      a.fa?a.faPercent:'',a.fa?a.oaTemp:'',a.fa?a.raTemp:'',a.fa?+r.faLoadPct.toFixed(1):'',a.fa?+r.mixedTemp.toFixed(1):'',
+      a.duct?'Yes':'No',a.duct?a.ductShape:'',
+      a.duct&&a.ductShape==='rect'?a.ductW:'',a.duct&&a.ductShape==='rect'?a.ductH:'',
+      a.duct&&a.ductShape!=='rect'?a.ductD:'',
+      a.duct?+r.ductArea.toFixed(3):'',a.duct?+r.ductVel.toFixed(1):'',a.duct?r.ductGrade:''
+    ]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=hdr.map(()=>({wch:18}));
+  XLSX.utils.book_append_sheet(wb,ws,'AHU Sizing');
+  const info=[
+    ['AHU Sizing Calculator'],['Project',state.projectName],['Reference',state.projectRef],
+    ['Engineer',state.engineer],['Date',state.date],['Notes',state.notes],[],
+    ['Assumptions'],
+    ['Face velocity limits','Heating ≤ 4.0 m/s, Cooling ≤ 2.5 m/s'],
+    ['Wet coil pipe flow','Darcy-Weisbach, f=0.02, max 300 Pa/m pressure drop'],
+    ['Air properties','ρ=1.2 kg/m³, Cp=1.005 kJ/(kg·K)'],
+    ['Water properties','ρ=998 kg/m³, Cp=4.18 kJ/(kg·K)'],
+    ['Fresh air inlet','Typical max face velocity 1.5 m/s'],
+    ['Duct velocity — ASHRAE bands','< 3: oversized | 3–5: low (residential) | 5–8: recommended (commercial) | 8–12.5: high-velocity limit | > 12.5: exceeds ASHRAE max'],
+    ['Duct equiv. diameter','Huebscher formula: De = 1.30 × (a·b)^0.625 / (a+b)^0.25'],
+    ['','Sense-check only — not for design submission']
+  ];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(info),'Info & Assumptions');
+  XLSX.writeFile(wb,'AHU-Sizing.xlsx');
+}
+
+// ── Export PDF ────────────────────────────────────────────────────────────────
+function exportPDF(){
+  if(!state.ahus.length){alert('No AHUs to export.');return;}
+  if(typeof jspdf==='undefined'||typeof jspdf.jsPDF==='undefined'){alert('PDF library not loaded. Check internet connection.');return;}
+  const {jsPDF}=jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pw=doc.internal.pageSize.getWidth();
+
+  doc.setFillColor(26,58,92);
+  doc.rect(0,0,pw,24,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('AHU Sizing Calculator',14,10);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text(`Project: ${state.projectName||'—'}  |  Ref: ${state.projectRef||'—'}  |  Engineer: ${state.engineer||'—'}  |  Date: ${state.date||'—'}`,14,17);
+  doc.text('Sense-check tool only — not for design submission',pw-14,17,{align:'right'});
+
+  let y=30;
+  state.ahus.forEach((a,i)=>{
+    const r=calc(a);
+    const isH=a.coilType==='heating';
+    if(i>0){doc.addPage();y=14;}
+
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(26,58,92);
+    doc.text(`${i+1}. ${a.name}${a.loc?' — '+a.loc:''}`,14,y);y+=6;
+
+    doc.autoTable({startY:y,
+      head:[['Airflow Parameter','Value']],
+      body:[
+        ['Face Dimensions',`${a.w} × ${a.h} mm`],
+        ['Face Area',`${r.faceArea.toFixed(2)} m²`],
+        ['Coil Type',isH?'Heating':'Cooling'],
+        ['Face Velocity',`${a.vel.toFixed(1)} m/s (max ${r.maxVel.toFixed(1)} m/s) ${r.velOk?'OK':'EXCEEDS LIMIT'}`],
+        ['Max Airflow',`${fmt0(r.airflowMh)} m³/h  |  ${r.airflowMs.toFixed(3)} m³/s  |  ${fmt0(r.airflowLs)} l/s`],
+      ],
+      theme:'grid',headStyles:{fillColor:[37,99,168],textColor:255,fontSize:8,fontStyle:'bold'},
+      bodyStyles:{fontSize:8},columnStyles:{0:{cellWidth:65},1:{cellWidth:100}},margin:{left:14,right:14}});
+    y=doc.lastAutoTable.finalY+4;
+
+    if(a.wetCoil){
+      doc.autoTable({startY:y,
+        head:[['Wet Coil Parameter','Value']],
+        body:[
+          ['Pipe Int. Diameter',`${r.pipeDia} mm`],
+          ['Water Velocity (300 Pa/m)',`${r.wVel.toFixed(2)} m/s`],
+          ['Water Flow Rate',`${r.wFlowLs.toFixed(2)} l/s  (${r.wFlowLm.toFixed(1)} l/min)`],
+          ['Coil Duty',`${r.duty.toFixed(1)} kW`],
+          ['Air Temp Change',`${r.isHeat?'+':'−'}${r.airDT.toFixed(1)}°C  →  Est. supply ${r.supplyTemp.toFixed(1)}°C`],
+        ],
+        theme:'grid',headStyles:{fillColor:[16,185,129],textColor:255,fontSize:8,fontStyle:'bold'},
+        bodyStyles:{fontSize:8},columnStyles:{0:{cellWidth:65},1:{cellWidth:100}},margin:{left:14,right:14}});
+      y=doc.lastAutoTable.finalY+4;
+    }
+
+    if(a.fa){
+      const dT=a.raTemp-a.oaTemp;
+      const faRows=[
+        ['OA Inlet Face',`${a.faW} × ${a.faH} mm  =  ${r.faArea.toFixed(2)} m²`],
+        ['Max FA (from inlet)',`${fmt0(r.faFlowFaceMh)} m³/h  (${r.faPctOfAHU.toFixed(0)}% of AHU flow)`],
+        ['FA Setting',`${a.faPercent}%  =  ${fmt0(r.faFlowPctMh)} m³/h`],
+        ['Outside Air Temp',`${a.oaTemp}°C  |  ΔT vs return: ${Math.abs(dT).toFixed(1)}°C`],
+        ['Fresh Air Heat Load',`${r.faLoadPct.toFixed(1)} kW`],
+        ['Mixed Air Temperature',`${r.mixedTemp.toFixed(1)}°C`],
+      ];
+      if(a.wetCoil){
+        faRows.push(['FA Penalty / Benefit',`${r.faPenalty>=0?'+':''}${r.faPenalty.toFixed(1)} kW  ${r.faPenalty>=0?'(extra coil work)':'(FA assists coil)'}`]);
+        faRows.push(['Net Duty Available for Building',`${r.netDuty.toFixed(1)} kW  ${r.canHandle?'Capacity remaining':'FA exceeds coil'}`]);
+      }
+      doc.autoTable({startY:y,
+        head:[['Fresh Air Parameter','Value']],body:faRows,
+        theme:'grid',headStyles:{fillColor:[14,165,233],textColor:255,fontSize:8,fontStyle:'bold'},
+        bodyStyles:{fontSize:8},columnStyles:{0:{cellWidth:65},1:{cellWidth:120}},margin:{left:14,right:14}});
+      y=doc.lastAutoTable.finalY+4;
+    }
+
+    if(a.duct){
+      const gi=DUCT_GRADES[r.ductGrade]||DUCT_GRADES.ok;
+      const dimStr=a.ductShape==='rect'?`${a.ductW} × ${a.ductH} mm (rect)`:`Ø${a.ductD} mm (round/spiral)`;
+      doc.autoTable({startY:y,
+        head:[['Main Supply Duct Parameter','Value']],
+        body:[
+          ['Duct Shape & Dimensions',dimStr],
+          ['Equivalent Diameter',`${r.ductEqDia} mm`],
+          ['Duct Cross-Section Area',`${r.ductArea.toFixed(3)} m²`],
+          ['Duct Velocity',`${r.ductVel.toFixed(1)} m/s`],
+          ['ASHRAE Assessment',gi.txt],
+          ['ASHRAE Bands','< 3: oversized | 3–5: low-vel | 5–8: recommended | 8–12.5: high-vel limit | >12.5: exceeds max'],
+        ],
+        theme:'grid',headStyles:{fillColor:[109,40,217],textColor:255,fontSize:8,fontStyle:'bold'},
+        bodyStyles:{fontSize:8},columnStyles:{0:{cellWidth:65},1:{cellWidth:145}},margin:{left:14,right:14}});
+      y=doc.lastAutoTable.finalY+4;
+    }
+  });
+
+  const pages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pages;p++){
+    doc.setPage(p);
+    doc.setFontSize(7);doc.setTextColor(150);
+    doc.text(`Page ${p} of ${pages}  |  AHU Sizing Calculator — Sense-check only`,pw/2,doc.internal.pageSize.getHeight()-6,{align:'center'});
+  }
+  doc.save('AHU-Sizing.pdf');
+}
+
+function dl(blob,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('projDate').value = state.date;
 render();
 </script>
 </body>
