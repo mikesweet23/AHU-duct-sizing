@@ -164,6 +164,8 @@ function defaultAHU(n){
     w:1000, h:600, coilType:'cooling', vel:2.0,
     // Wet coil
     wetCoil:false, pipe:'28 mm', pipeCustom:26, dT:10, fluid:'water',
+    // Main duct cross-check
+    ductShape:'rect', ductW:800, ductH:500, ductDia:900,
     // Fresh air
     fa:false, faW:500, faH:400, faVel:1.5, oaTemp:10, raTemp:21, faPercent:20, faTab:'face'
   };
@@ -205,6 +207,15 @@ function calc(a){
   r.airflowLs = r.airflowMs * 1000;
   r.maxVel = a.coilType==='heating' ? 4.0 : 2.5;
   r.velOk = a.vel <= r.maxVel;
+  // Main duct sizing check (CIBSE indicative main supply range)
+  const rectArea = (a.ductW/1000)*(a.ductH/1000);
+  const roundArea = Math.PI*Math.pow((a.ductDia/1000)/2,2);
+  r.ductArea = a.ductShape==='round' ? roundArea : rectArea;
+  r.ductVel = r.ductArea>0 ? (r.airflowMs/r.ductArea) : 0;
+  if(r.ductVel < 3){ r.ductBand='Low'; r.ductBandClass='cool'; r.ductGuide='Below typical CIBSE main duct range.'; }
+  else if(r.ductVel <= 6){ r.ductBand='Expected'; r.ductBandClass='big'; r.ductGuide='Within typical CIBSE main duct range (3–6 m/s).'; }
+  else if(r.ductVel <= 8){ r.ductBand='High'; r.ductBandClass='warn'; r.ductGuide='Above typical range; may increase noise/pressure drop.'; }
+  else { r.ductBand='Very high'; r.ductBandClass='hot'; r.ductGuide='Well above typical CIBSE main duct range.'; }
 
   // Wet coil
   if(a.wetCoil){
@@ -357,6 +368,38 @@ function renderAHU(a,i){
               <span class="rl">Velocity Status</span>
               <span class="rv"><span class="tag ${r.velOk?'tag-ok':'tag-warn'}">${r.velOk?'✓ Within limit':'⚠ Exceeds limit'}</span></span>
             </div>
+          </div>
+          <hr>
+          <div class="fr">
+            <div class="fl">Main Duct Type</div>
+            <div class="fi">
+              <select onchange="upd(${a.id},'ductShape',this.value)">
+                <option value="rect" ${a.ductShape==='rect'?'selected':''}>Rectangular</option>
+                <option value="round" ${a.ductShape==='round'?'selected':''}>Spiral Round</option>
+              </select>
+            </div>
+          </div>
+          ${a.ductShape==='round'?`
+          <div class="fr">
+            <div class="fl">Duct Ø (mm)</div>
+            <div class="fi"><input type="number" min="100" max="5000" value="${a.ductDia}" data-fid="${a.id}-ductDia" oninput="upd(${a.id},'ductDia',+this.value)"></div>
+          </div>`:`
+          <div class="two">
+            <div class="fr" style="margin:0">
+              <div class="fl" style="width:90px">Duct W (mm)</div>
+              <div class="fi"><input type="number" min="100" max="5000" value="${a.ductW}" data-fid="${a.id}-ductW" oninput="upd(${a.id},'ductW',+this.value)"></div>
+            </div>
+            <div class="fr" style="margin:0">
+              <div class="fl" style="width:90px">Duct H (mm)</div>
+              <div class="fi"><input type="number" min="100" max="5000" value="${a.ductH}" data-fid="${a.id}-ductH" oninput="upd(${a.id},'ductH',+this.value)"></div>
+            </div>
+          </div>`}
+          <div class="res" style="margin-top:10px">
+            <h4>Main Duct Cross-check</h4>
+            <div class="rr"><span class="rl">Duct Area</span><span class="rv">${r.ductArea.toFixed(3)} m²</span></div>
+            <div class="rr"><span class="rl">Velocity @ AHU Flow</span><span class="rv ${r.ductBandClass}">${r.ductVel.toFixed(2)} m/s</span></div>
+            <div class="rr"><span class="rl">Expected Flow Band</span><span class="rv">${r.ductBand}</span></div>
+            <div class="note">${r.ductGuide}</div>
           </div>
         </div>
       </div>
@@ -558,6 +601,11 @@ function renderSummary(a,r){
         <div class="sum-val">${a.vel.toFixed(1)}</div>
         <div class="sum-unit">m/s ${r.velOk?'✓':'⚠'}</div>
       </div>
+      <div class="sum-item">
+        <div class="sum-lbl">Main Duct Vel</div>
+        <div class="sum-val">${r.ductVel.toFixed(2)}</div>
+        <div class="sum-unit">m/s (${r.ductBand})</div>
+      </div>
       ${hasWet?`
       <div class="sum-item">
         <div class="sum-lbl">${isH?'Heating':'Cooling'} Duty</div>
@@ -633,6 +681,7 @@ function exportCSV(){
     ['Project',state.projectName,'Ref',state.projectRef,'Engineer',state.engineer,'Date',state.date],
     [],
     ['Name','Location','W (mm)','H (mm)','Face Area (m²)','Coil Type','Face Vel (m/s)','Airflow (m³/h)','Airflow (m³/s)','Airflow (l/s)','Vel OK',
+     'Main Duct Shape','Duct W (mm)','Duct H (mm)','Duct Dia (mm)','Duct Area (m²)','Duct Vel (m/s)','Duct Band',
      'Wet Coil','Pipe (mm)','Water Vel (m/s)','Water Flow (l/s)','Duty (kW)','Air ΔT (°C)',
      'Fresh Air','FA Inlet Area (m²)','Max FA (m³/h)','FA % of Total','FA % Setting','OA Temp (°C)','RA Temp (°C)','FA Load (kW)','Mixed Air Temp (°C)']
   ];
@@ -640,6 +689,7 @@ function exportCSV(){
     const r=calc(a);
     rows.push([
       a.name,a.loc,a.w,a.h,r.faceArea.toFixed(2),a.coilType,a.vel,fmt0(r.airflowMh),r.airflowMs.toFixed(3),fmt0(r.airflowLs),r.velOk?'Yes':'No',
+      a.ductShape,a.ductShape==='rect'?a.ductW:'',a.ductShape==='rect'?a.ductH:'',a.ductShape==='round'?a.ductDia:'',r.ductArea.toFixed(3),r.ductVel.toFixed(2),r.ductBand,
       a.wetCoil?'Yes':'No',a.wetCoil?r.pipeDia:'',a.wetCoil?r.wVel.toFixed(2):'',a.wetCoil?r.wFlowLs.toFixed(2):'',a.wetCoil?r.duty.toFixed(1):'',a.wetCoil?(r.isHeat?'+':'-')+r.airDT.toFixed(1):'',
       a.fa?'Yes':'No',a.fa?r.faArea.toFixed(2):'',a.fa?fmt0(r.faFlowFaceMh):'',a.fa?r.faPctOfAHU.toFixed(0):'',a.fa?a.faPercent:'',a.fa?a.oaTemp:'',a.fa?a.raTemp:'',a.fa?r.faLoadPct.toFixed(1):'',a.fa?r.mixedTemp.toFixed(1):''
     ]);
@@ -655,6 +705,7 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
   const hdr=['Name','Location','Width (mm)','Height (mm)','Face Area (m²)','Coil Type','Face Vel (m/s)',
     'Airflow (m³/h)','Airflow (m³/s)','Airflow (l/s)','Velocity OK',
+    'Main Duct Shape','Duct W (mm)','Duct H (mm)','Duct Dia (mm)','Duct Area (m²)','Duct Vel (m/s)','Duct Band',
     'Wet Coil','Pipe Int Dia (mm)','Water Vel (m/s)','Water Flow (l/s)','Coil Duty (kW)','Air ΔT (°C)','Est Supply Temp (°C)',
     'Fresh Air','FA Inlet Area (m²)','Max FA (m³/h)','FA Face %','FA %','OA Temp (°C)','RA Temp (°C)','FA Load (kW)','Mixed Air Temp (°C)'];
   const data=[hdr];
@@ -663,6 +714,7 @@ function exportExcel(){
     data.push([
       a.name,a.loc,a.w,a.h,+r.faceArea.toFixed(2),a.coilType,a.vel,
       +fmt0(r.airflowMh).replace(/,/g,''),+r.airflowMs.toFixed(3),+fmt0(r.airflowLs).replace(/,/g,''),r.velOk?'Yes':'No',
+      a.ductShape,a.ductShape==='rect'?a.ductW:'',a.ductShape==='rect'?a.ductH:'',a.ductShape==='round'?a.ductDia:'',+r.ductArea.toFixed(3),+r.ductVel.toFixed(2),r.ductBand,
       a.wetCoil?'Yes':'No',a.wetCoil?r.pipeDia:'',a.wetCoil?+r.wVel.toFixed(2):'',a.wetCoil?+r.wFlowLs.toFixed(2):'',a.wetCoil?+r.duty.toFixed(1):'',a.wetCoil?+(r.isHeat?1:-1)*r.airDT:'' ,a.wetCoil?+r.supplyTemp.toFixed(1):'',
       a.fa?'Yes':'No',a.fa?+r.faArea.toFixed(2):'',a.fa?r.faFlowFaceMh.toFixed(0):'',a.fa?+r.faPctOfAHU.toFixed(0):'',a.fa?a.faPercent:'',a.fa?a.oaTemp:'',a.fa?a.raTemp:'',a.fa?+r.faLoadPct.toFixed(1):'',a.fa?+r.mixedTemp.toFixed(1):''
     ]);
@@ -719,6 +771,7 @@ function exportPDF(){
       ['Coil Type',isH?'Heating':'Cooling'],
       ['Face Velocity',`${a.vel.toFixed(1)} m/s (max ${r.maxVel.toFixed(1)} m/s) ${r.velOk?'✓':'⚠ EXCEEDS'}`],
       ['Max Airflow',`${fmt0(r.airflowMh)} m³/h  |  ${r.airflowMs.toFixed(3)} m³/s  |  ${fmt0(r.airflowLs)} l/s`],
+      ['Main Duct Check',`${a.ductShape==='round'?'Spiral round Ø '+a.ductDia+' mm':'Rect '+a.ductW+' × '+a.ductH+' mm'}  |  ${r.ductVel.toFixed(2)} m/s (${r.ductBand})`],
     ];
     doc.autoTable({startY:y,head:[['Airflow Parameter','Value']],body:afRows,
       theme:'grid',headStyles:{fillColor:[37,99,168],textColor:255,fontSize:8,fontStyle:'bold'},
